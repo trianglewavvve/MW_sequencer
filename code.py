@@ -1,3 +1,9 @@
+#To monitor the console run the commands below in terminal
+#ls \dev\tty*
+#screen /dev/tty.usbmodem14222101	 115200
+#replace the 'usbmodem14222101' with the device number from disaplyed by the first command
+
+
 import time
 import board
 import busio
@@ -12,29 +18,32 @@ from adafruit_hid.keycode import Keycode
 
 #import adafruit_trellism4
 
-
+with open ("settings.txt", "r") as myfile:
+    data=myfile.readlines()
+#print(data[0])
+#print('\n******\n')
+#print(print(data[1]))
 
 # The keyboard object!
 time.sleep(1)  # Sleep for a bit to avoid a race condition on some systems
 keyboard = Keyboard(usb_hid.devices)
 keyboard_layout = KeyboardLayoutUS(keyboard)  # We're in the US :)
-
-keys_pressed = [Keycode.A, "Hello World!\n"]
-
-tempo = 200  # Starting BPM
+tempo = 400  # Starting BPM
 
 # You can use the accelerometer to speed/slow down tempo by tilting!
 ENABLE_TILT_TEMPO = False
 MIN_TEMPO = 100
-MAX_TEMPO = 300
+MAX_TEMPO = 400
 
 SAMPLE_FOLDER = "/samples/"  # the name of the folder containing the samples
 # You get 4 voices, they must all have the same sample rate and must
 # all be mono or stereo (no mix-n-match!)
-VOICES = [SAMPLE_FOLDER+"voice01.wav",
-          SAMPLE_FOLDER+"voice02.wav",
-          SAMPLE_FOLDER+"voice03.wav",
-          SAMPLE_FOLDER+"voice04.wav"]
+VOICES = [SAMPLE_FOLDER+"G3.wav",
+          SAMPLE_FOLDER+"G3.wav",
+          SAMPLE_FOLDER+"B4.wav",
+          SAMPLE_FOLDER+"G4.wav"]
+
+
 
 # four colors for the 4 voices, using 0 or 255 only will reduce buzz
 DRUM_COLOR = ((120, 0, 255),
@@ -70,30 +79,6 @@ def wheel(pos): # Input a value 0 to 255 to get a color value.
     else:
         pos -= 170
         return(0, int(pos * 3), int(255 - pos*3))
-
-# Play the welcome wav (if its there)
-with audioio.AudioOut(board.A1, right_channel=board.A0) as audio:
-    try:
-        f = open("welcome.wav", "rb")
-        wave = audioio.WaveFile(f)
-        audio.play(wave)
-        swirl = 0  # we'll swirl through the colors in the gradient
-        while audio.playing:
-            for i in range(32):
-                palette_index = ((swirl+i) % 32) / 32
-                color = fancy.palette_lookup(INTRO_SWIRL, palette_index)
-                # display it!
-                trellis.pixels[(i//8, i%8)] = color.pack()
-            swirl += 1
-            time.sleep(0.005)
-        f.close()
-        # Clear all pixels
-        trellis.pixels.fill(0)
-        # just hold a moment
-        time.sleep(0.5)
-    except OSError:
-        # no biggie, they probably deleted it
-        pass
 
 
 # Parse the first file to figure out what format its in
@@ -146,44 +131,58 @@ beatset = [[False] * 8, [False] * 8, [False] * 8, [False] * 8]
 # currently pressed buttons
 current_press = set()
 key_chars='0123456789abcdefghijklmnopqrstuvwxyz'
-
+rows=['A', 'B', 'C', 'D']
+current_step_row=[0, 0, 0, 0]
 while True:
     stamp = time.monotonic()
     # redraw the last step to remove the ticker bar (e.g. 'normal' view)
+    #print(data[0])
     for y in range(4):
         color = 0
         if beatset[y][current_step]:
             color = DRUM_COLOR[y]
         trellis.pixels[(y, current_step)] = color
 
+
+        dividend=2**(y)
+        if (current_step)%dividend==0:
+            #print(f'Row:{y} step:{current_step}')
+            current_step_row[y]=True
+        else:
+            current_step_row[y]=False
+
+    print(current_step_row)
     # next beat!
+    # substitute subtraction in order to reverse direction
     current_step = (current_step + 1) % 8
+
+
+
 
     # draw the vertical ticker bar, with selected voices highlighted
     for y in range(4):
+
+
+# this is where I need to modify the logic to do division -DF
+
+
         if beatset[y][current_step]:
             r, g, b = DRUM_COLOR[y]
             color = (r//2, g//2, b//2)  # this voice is enabled
             #print("Playing: ", VOICES[y])
             mixer.play(samples[y], voice=y)
-            #keyboard_layout.write(str(y*8+current_step))
             keyboard_layout.write(key_chars[(y*8+current_step)])
-
             keyboard_layout.write('\n')
-
-
-
-
-
-
-
-
-
-
 
         else:
             color = TICKER_COLOR     # no voice on
         trellis.pixels[(y, current_step)] = color
+
+
+
+
+
+
 
     # handle button presses while we're waiting for the next tempo beat
     # also check the accelerometer if we're using it, to adjust tempo
