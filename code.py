@@ -1,6 +1,6 @@
 #To monitor the console run the commands below in terminal
-#ls \dev\tty*
-#screen /dev/tty.usbmodem14222101	 115200
+# ls /dev/tty.*
+#screen /dev/tty.usbmodem14222301	 115200
 #replace the 'usbmodem14222101' with the device number from disaplyed by the first command
 
 
@@ -133,54 +133,86 @@ current_press = set()
 key_chars='0123456789abcdefghijklmnopqrstuvwxyz'
 rows=['A', 'B', 'C', 'D']
 current_step_row=[0, 0, 0, 0]
+previous_step_row=[0, 0, 0, 0]
 while True:
     stamp = time.monotonic()
     # redraw the last step to remove the ticker bar (e.g. 'normal' view)
     #print(data[0])
     for y in range(4):
-        color = 0
-        if beatset[y][current_step]:
-            color = DRUM_COLOR[y]
-        trellis.pixels[(y, current_step)] = color
+
 
 
         dividend=2**(y)
-        if (current_step)%dividend==0:
+        if current_step_row[y]<8:
+            if (current_step)%dividend==0:
             #print(f'Row:{y} step:{current_step}')
-            current_step_row[y]=True
-        else:
-            current_step_row[y]=False
+                current_step_row[y]+=1
+                if current_step_row[y]==8:
+                    current_step_row[y]=0
+        print(current_step_row)
 
-    print(current_step_row)
+#        color = 0
+#        if beatset[y][current_step]:
+#            color = DRUM_COLOR[y]
+#        trellis.pixels[(y, current_step)] = color
+
+
+        color = 0
+        if beatset[y][current_step_row[y]]:
+            color = DRUM_COLOR[y]
+        trellis.pixels[(y, current_step_row[y])] = color
+        previous_step=current_step_row[y]-1
+        if previous_step<0:
+            previous_step=7
+        trellis.pixels[(y, previous_step)] = 0
     # next beat!
     # substitute subtraction in order to reverse direction
     current_step = (current_step + 1) % 8
 
 
 
-
+####################################################################
+##### this is where I need to modify the logic to do division -DF###
+####################################################################
     # draw the vertical ticker bar, with selected voices highlighted
+    #for y in range(4):
+#
+#        if beatset[y][current_step]:
+#            r, g, b = DRUM_COLOR[y]
+#            color = (r//2, g//2, b//2)  # this voice is enabled
+#            #print("Playing: ", VOICES[y])
+#            mixer.play(samples[y], voice=y)
+#            keyboard_layout.write(key_chars[(y*8+current_step)])
+#            keyboard_layout.write('\n')
+#
+#        else:
+#            color = TICKER_COLOR     # no voice on
+#        trellis.pixels[(y, current_step)] = color
+
+
+
     for y in range(4):
 
-
-# this is where I need to modify the logic to do division -DF
-
-
-        if beatset[y][current_step]:
+        if beatset[y][current_step_row[y]]:
             r, g, b = DRUM_COLOR[y]
             color = (r//2, g//2, b//2)  # this voice is enabled
             #print("Playing: ", VOICES[y])
             mixer.play(samples[y], voice=y)
-            keyboard_layout.write(key_chars[(y*8+current_step)])
+            keyboard_layout.write(key_chars[(y*8+current_step_row[y])])
             keyboard_layout.write('\n')
 
         else:
             color = TICKER_COLOR     # no voice on
-        trellis.pixels[(y, current_step)] = color
+            trellis.pixels[(y, current_step_row[y])] = color
 
 
 
 
+
+
+##################################################################
+##### modify above to create clock division ####
+##################################################################
 
 
 
