@@ -1,11 +1,4 @@
-#To monitor the console run the commands below in terminal
-# ls /dev/tty.*
-#screen /dev/tty.usbmodem14222301	 115200
-#replace the 'usbmodem14222101' with the device number from displayed by the first command
-
 #https://learn.adafruit.com/classic-midi-synth-control-with-trellis-m4/code-with-circuitpython
-
-
 import time
 import board
 import busio
@@ -20,7 +13,7 @@ from adafruit_hid.keycode import Keycode
 
 midiuart = busio.UART(board.SDA, board.SCL, baudrate=31250)
 
-midi_mode = False
+midi_mode = True
 
 with open ("settings.txt", "r") as myfile:
     data=myfile.readlines()
@@ -32,7 +25,7 @@ with open ("settings.txt", "r") as myfile:
 time.sleep(1)  # Sleep for a bit to avoid a race condition on some systems
 keyboard = Keyboard(usb_hid.devices)
 keyboard_layout = KeyboardLayoutUS(keyboard)  # We're in the US :)
-tempo = 300  # Starting BPM
+tempo = 400  # Starting BPM
 
 # You can use the accelerometer to speed/slow down tempo by tilting!
 ENABLE_TILT_TEMPO = False
@@ -64,9 +57,6 @@ TICKER_COLOR = (0, 0, 255)
 # Our keypad + neopixel driver
 trellis = adafruit_trellism4.TrellisM4Express(rotation=90)
 trellis.pixels.brightness = (0.31)
-
-
-
 
 # Our accelerometer
 i2c = busio.I2C(board.ACCELEROMETER_SCL, board.ACCELEROMETER_SDA)
@@ -132,17 +122,23 @@ trellis.pixels.fill(0)
 current_step = 7 # we actually start on the last step since we increment first
 # the state of the sequencer
 beatset = [[False] * 8, [False] * 8, [False] * 8, [False] * 8]
+prior_beatset=beatset
 # currently pressed buttons
 current_press = set()
 key_chars='0123456789abcdefghijklmnopqrstuvwxyz'
 rows=['A', 'B', 'C', 'D']
 current_step_row=[0, 0, 0, 0]
 previous_step_row=[0, 0, 0, 0]
+cycle_count=0
+dividend_list=[[1, 1, 1, 1], [1, 1, 1, 2], [1, 1, 2, 4], [1, 2, 4, 8]]
+idle_count=0
 
 #'Everything above executes a single time on startup'
 #Everything below repeats on a loop
 
 while True:
+    print(idle_count)
+    idle_count+=1
     stamp = time.monotonic()
     # redraw the last step to remove the ticker bar (e.g. 'normal' view)
     #print(data[0])
@@ -150,9 +146,10 @@ while True:
 ###########################################################################################
 ##### this is where I modified the code in order to accomplish clock division -David F.####
 ###########################################################################################
-
+    
     for y in range(4):
-        dividend=2**(y)
+        #dividend=2**(y)
+        dividend = dividend_list[cycle_count][y]
         previous_step_row[y]=current_step_row[y]
         if current_step_row[y]<8:
             if (current_step)%dividend==0:
@@ -176,7 +173,12 @@ while True:
     # next beat!
     # substitute subtraction in order to reverse direction
     current_step = (current_step + 1) % 8
-
+    if sum(current_step_row)==0:
+        if cycle_count==3:
+            cycle_count=0
+        else:
+            if idle_count<119:
+                cycle_count+=1
 
     # draw the vertical ticker bar, with selected voices highlighted
 
@@ -224,6 +226,7 @@ while True:
         #print(pressed)
         for down in pressed - current_press:
             print("Pressed down", down)
+            idle_count=0
             print(time.monotonic())
             y = down[0]
             x = down[1]
