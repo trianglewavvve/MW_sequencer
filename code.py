@@ -1,7 +1,9 @@
 #To monitor the console run the commands below in terminal
 # ls /dev/tty.*
 #screen /dev/tty.usbmodem14222301	 115200
-#replace the 'usbmodem14222101' with the device number from disaplyed by the first command
+#replace the 'usbmodem14222101' with the device number from displayed by the first command
+
+#https://learn.adafruit.com/classic-midi-synth-control-with-trellis-m4/code-with-circuitpython
 
 
 import time
@@ -16,7 +18,9 @@ from adafruit_hid.keyboard import Keyboard
 from adafruit_hid.keyboard_layout_us import KeyboardLayoutUS
 from adafruit_hid.keycode import Keycode
 
-#import adafruit_trellism4
+midiuart = busio.UART(board.SDA, board.SCL, baudrate=31250)
+
+midi_mode = True
 
 with open ("settings.txt", "r") as myfile:
     data=myfile.readlines()
@@ -28,7 +32,7 @@ with open ("settings.txt", "r") as myfile:
 time.sleep(1)  # Sleep for a bit to avoid a race condition on some systems
 keyboard = Keyboard(usb_hid.devices)
 keyboard_layout = KeyboardLayoutUS(keyboard)  # We're in the US :)
-tempo = 400  # Starting BPM
+tempo = 300  # Starting BPM
 
 # You can use the accelerometer to speed/slow down tempo by tilting!
 ENABLE_TILT_TEMPO = False
@@ -59,7 +63,7 @@ TICKER_COLOR = (0, 0, 255)
 
 # Our keypad + neopixel driver
 trellis = adafruit_trellism4.TrellisM4Express(rotation=90)
-trellis.pixels.brightness = (0.01)
+trellis.pixels.brightness = (0.31)
 
 
 
@@ -134,77 +138,73 @@ key_chars='0123456789abcdefghijklmnopqrstuvwxyz'
 rows=['A', 'B', 'C', 'D']
 current_step_row=[0, 0, 0, 0]
 previous_step_row=[0, 0, 0, 0]
+
+#'Everything above executes a single time on startup'
+#Everything below repeats on a loop
+
 while True:
     stamp = time.monotonic()
     # redraw the last step to remove the ticker bar (e.g. 'normal' view)
     #print(data[0])
+
+###########################################################################################
+##### this is where I modified the code in order to accomplish clock division -David F.####
+###########################################################################################
+
     for y in range(4):
-
-
-
         dividend=2**(y)
+        previous_step_row[y]=current_step_row[y]
         if current_step_row[y]<8:
             if (current_step)%dividend==0:
-            #print(f'Row:{y} step:{current_step}')
                 current_step_row[y]+=1
                 if current_step_row[y]==8:
                     current_step_row[y]=0
-        print(current_step_row)
-
-#        color = 0
-#        if beatset[y][current_step]:
-#            color = DRUM_COLOR[y]
-#        trellis.pixels[(y, current_step)] = color
-
+        #print(current_step_row)
 
         color = 0
         if beatset[y][current_step_row[y]]:
             color = DRUM_COLOR[y]
-        trellis.pixels[(y, current_step_row[y])] = color
+            trellis.pixels[(y, current_step_row[y])] = color
         previous_step=current_step_row[y]-1
         if previous_step<0:
             previous_step=7
-        trellis.pixels[(y, previous_step)] = 0
+        if beatset[y][previous_step]:
+            color = DRUM_COLOR[y]
+        else:
+            color=0
+        trellis.pixels[(y, previous_step)] = color
     # next beat!
     # substitute subtraction in order to reverse direction
     current_step = (current_step + 1) % 8
 
 
-
-####################################################################
-##### this is where I need to modify the logic to do division -DF###
-####################################################################
     # draw the vertical ticker bar, with selected voices highlighted
-    #for y in range(4):
-#
-#        if beatset[y][current_step]:
-#            r, g, b = DRUM_COLOR[y]
-#            color = (r//2, g//2, b//2)  # this voice is enabled
-#            #print("Playing: ", VOICES[y])
-#            mixer.play(samples[y], voice=y)
-#            keyboard_layout.write(key_chars[(y*8+current_step)])
-#            keyboard_layout.write('\n')
-#
-#        else:
-#            color = TICKER_COLOR     # no voice on
-#        trellis.pixels[(y, current_step)] = color
-
-
 
     for y in range(4):
 
         if beatset[y][current_step_row[y]]:
-            r, g, b = DRUM_COLOR[y]
-            color = (r//2, g//2, b//2)  # this voice is enabled
-            #print("Playing: ", VOICES[y])
-            mixer.play(samples[y], voice=y)
-            keyboard_layout.write(key_chars[(y*8+current_step_row[y])])
-            keyboard_layout.write('\n')
+            if previous_step_row[y]!=current_step_row[y]:
+
+                #r, g, b = DRUM_COLOR[y]
+                color = (200, 0, 255)
+                #print("Playing: ", VOICES[y])
+                trellis.pixels[(y, current_step_row[y])] = color
+                mixer.play(samples[y], voice=y)
+                if midi_mode:
+                    noteval=100+y*12
+                    midiuart.write(bytes([0x90, noteval, 100]))
+                else:
+                    keyboard_layout.write(key_chars[(y*8+current_step_row[y])])
+                    keyboard_layout.write('\n')
+            else:
+                if  midi_mode:
+                    noteval=100+y*12
+                    midiuart.write(bytes([0x90, noteval, 0]))
+
 
         else:
             color = TICKER_COLOR     # no voice on
             trellis.pixels[(y, current_step_row[y])] = color
-
 
 
 
@@ -224,6 +224,7 @@ while True:
         #print(pressed)
         for down in pressed - current_press:
             print("Pressed down", down)
+            print(time.monotonic())
             y = down[0]
             x = down[1]
             beatset[y][x] = not beatset[y][x] # enable the voice
