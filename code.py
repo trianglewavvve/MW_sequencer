@@ -20,7 +20,7 @@ from adafruit_hid.keycode import Keycode
 
 midiuart = busio.UART(board.SDA, board.SCL, baudrate=31250)
 
-midi_mode = True
+midi_mode = False
 
 with open ("settings.txt", "r") as myfile:
     data=myfile.readlines()
