@@ -1,4 +1,6 @@
 #https://learn.adafruit.com/classic-midi-synth-control-with-trellis-m4/code-with-circuitpython
+
+
 import time
 import board
 import busio
@@ -57,6 +59,9 @@ TICKER_COLOR = (0, 0, 255)
 # Our keypad + neopixel driver
 trellis = adafruit_trellism4.TrellisM4Express(rotation=90)
 trellis.pixels.brightness = (0.31)
+
+
+
 
 # Our accelerometer
 i2c = busio.I2C(board.ACCELEROMETER_SCL, board.ACCELEROMETER_SDA)
@@ -137,7 +142,7 @@ idle_count=0
 #Everything below repeats on a loop
 
 while True:
-    print(idle_count)
+    #print(idle_count)
     idle_count+=1
     stamp = time.monotonic()
     # redraw the last step to remove the ticker bar (e.g. 'normal' view)
@@ -146,7 +151,7 @@ while True:
 ###########################################################################################
 ##### this is where I modified the code in order to accomplish clock division -David F.####
 ###########################################################################################
-    
+
     for y in range(4):
         #dividend=2**(y)
         dividend = dividend_list[cycle_count][y]
