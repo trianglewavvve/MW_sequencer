@@ -105,8 +105,10 @@ previous_step_row=[0, 0, 0, 0]
 cycle_count=0
 dividend_list=[[1, 1, 1, 1], [1, 1, 1, 2], [1, 1, 2, 4], [1, 2, 4, 8]]
 idle_count=0
-#'Everything above executes a single time on startup'
-#Everything below repeats on a loop
+###########################################################################################
+################ Everything above executes a single time on startup'#######################
+###############################Everything below repeats on a loop##########################
+###########################################################################################
 while True:
     #print(idle_count)
     idle_count+=1
@@ -193,21 +195,5 @@ while True:
                 color = 0
             trellis.pixels[down] = color
         current_press = pressed
-        if ENABLE_TILT_TEMPO:
-            # Check accelerometer tilt!
-            tilt = accelerometer.acceleration[1]
-            #print("%0.1f" % tilt)
-            new_tempo = tempo
-            if tilt < -9:
-                new_tempo = tempo + 5
-            elif tilt < -6:
-                new_tempo = tempo + 1
-            elif tilt > 9:
-                new_tempo = tempo - 5
-            elif tilt > 6:
-                new_tempo = tempo - 1
-            if new_tempo != tempo:
-                tempo = max(min(new_tempo, MAX_TEMPO), MIN_TEMPO)
-                print("Tempo: %d BPM" % tempo)
-                time.sleep(0.05)  # dont update tempo too fast!
+
         time.sleep(0.01)  # a little delay here helps avoid debounce annoyances
