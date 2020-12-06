@@ -43,10 +43,7 @@ DRUM_COLOR = ((120, 0, 255),
               (120, 0, 255),
               (120, 0, 255),
               (120, 0, 255))
-# For the intro, pick any number of colors to make a fancy gradient!
-INTRO_SWIRL = [fancy.CRGB(255, 0, 0),  # red
-               fancy.CRGB(120, 0, 255),  # green
-               fancy.CRGB(0, 0, 255)]  # blue
+
 # the color for the sweeping ticker bar
 TICKER_COLOR = (0, 0, 255)
 # Our keypad + neopixel driver
@@ -54,18 +51,7 @@ trellis = adafruit_trellism4.TrellisM4Express(rotation=90)
 trellis.pixels.brightness = (0.31)
 # Our accelerometer
 i2c = busio.I2C(board.ACCELEROMETER_SCL, board.ACCELEROMETER_SDA)
-accelerometer = adafruit_adxl34x.ADXL345(i2c)
-def wheel(pos): # Input a value 0 to 255 to get a color value.
-    if pos < 0 or pos > 255:
-        return (0, 0, 0)
-    elif pos < 85:
-        return(int(pos * 3), int(255 - pos*3), 0)
-    elif pos < 170:
-        pos -= 85
-        return(int(255 - pos*3), 0, int(pos * 3))
-    else:
-        pos -= 170
-        return(0, int(pos * 3), int(255 - pos*3))
+
 # Parse the first file to figure out what format its in
 with open(VOICES[0], "rb") as f:
     wav = audioio.WaveFile(f)
@@ -186,7 +172,7 @@ while True:
             color = TICKER_COLOR     # no voice on
             trellis.pixels[(y, current_step_row[y])] = color
 ##################################################################
-##### modify above to create clock division ####
+##### modified above to create clock division ####
 ##################################################################
     # handle button presses while we're waiting for the next tempo beat
     # also check the accelerometer if we're using it, to adjust tempo
