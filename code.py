@@ -11,6 +11,9 @@ from adafruit_hid.keyboard import Keyboard
 from adafruit_hid.keyboard_layout_us import KeyboardLayoutUS
 from adafruit_hid.keycode import Keycode
 
+row=0
+column=1
+
 midiuart = busio.UART(board.SDA, board.SCL, baudrate=31250)
 
 #midi_mode = True
@@ -43,14 +46,22 @@ DRUM_COLOR = ((120, 0, 255),
               (120, 0, 255),
               (120, 0, 255),
               (120, 0, 255))
+ACTIVE_COLOR = (120, 0, 255)
+INACTIVE_COLOR = (0, 0, 120)
 
 # the color for the sweeping ticker bar
 TICKER_COLOR = (0, 0, 255)
 # Our keypad + neopixel driver
 trellis = adafruit_trellism4.TrellisM4Express(rotation=90)
 trellis.pixels.brightness = (0.31)
-# Our accelerometer
-i2c = busio.I2C(board.ACCELEROMETER_SCL, board.ACCELEROMETER_SDA)
+
+
+#Create a list of all step XY locations
+step_list=[]
+for y in range(4):
+    for x in range(8):
+        step_list.append((y, x))
+
 
 # Parse the first file to figure out what format its in
 with open(VOICES[0], "rb") as f:
@@ -78,20 +89,15 @@ for v in range(4):
     #trellis.pixels[(v, 0)] = DRUM_COLOR[v]
     wave_file = open(VOICES[v], "rb")
     # OK we managed to open the wave OK
-    #for x in range(1, 4):
-#        trellis.pixels[(v, x)] = DRUM_COLOR[v]
     sample = audioio.WaveFile(wave_file)
-    # debug play back on load!
-    #mixer.play(sample, voice=0)
-#    for x in range(4, 7):
-#        trellis.pixels[(v, x)] = DRUM_COLOR[v]
     while mixer.playing:
         pass
-#    trellis.pixels[(v, 7)] = DRUM_COLOR[v]
     samples.append(sample)
 # Clear all pixels
 trellis.pixels.fill(0)
 # Our global state
+
+
 current_step = 7 # we actually start on the last step since we increment first
 # the state of the sequencer
 beatset = [[False] * 8, [False] * 8, [False] * 8, [False] * 8]
@@ -105,95 +111,86 @@ previous_step_row=[0, 0, 0, 0]
 cycle_count=0
 dividend_list=[[1, 1, 1, 1], [1, 1, 1, 2], [1, 1, 2, 4], [1, 2, 4, 8]]
 idle_count=0
+
 ###########################################################################################
 ################ Everything above executes a single time on startup'#######################
 ###############################Everything below repeats on a loop##########################
 ###########################################################################################
+
 while True:
     #print(idle_count)
     idle_count+=1
     stamp = time.monotonic()
     # redraw the last step to remove the ticker bar (e.g. 'normal' view)
     #print(data[0])
-###########################################################################################
-##### this is where I modified the code in order to accomplish clock division -David F.####
-###########################################################################################
-    for y in range(4):
-        #dividend=2**(y)
-        dividend = dividend_list[cycle_count][y]
-        #temporarily remove clock division
-        dividend=1
-        previous_step_row[y]=current_step_row[y]
-        if current_step_row[y]<8:
-            if (current_step)%dividend==0:
-                current_step_row[y]+=1
-                if current_step_row[y]==8:
-                    current_step_row[y]=0
-        #print(current_step_row)
-        color = 0
-        if beatset[y][current_step_row[y]]:
-            color = DRUM_COLOR[y]
-            trellis.pixels[(y, current_step_row[y])] = color
-        previous_step=current_step_row[y]-1
-        if previous_step<0:
-            previous_step=7
-        if beatset[y][previous_step]:
-            color = DRUM_COLOR[y]
-        else:
-            color=0
-        trellis.pixels[(y, previous_step)] = color
-    # next beat!
-    # substitute subtraction in order to reverse direction
-    current_step = (current_step + 1) % 8
-    if sum(current_step_row)==0:
-        if cycle_count==3:
-            cycle_count=0
-        else:
-            if idle_count<119:
-                cycle_count+=1
-    # draw the vertical ticker bar, with selected voices highlighted
-    for y in range(4):
-        if beatset[y][current_step_row[y]]:
-            if previous_step_row[y]!=current_step_row[y]:
-                #r, g, b = DRUM_COLOR[y]
-                color = (200, 0, 255)
-                #print("Playing: ", VOICES[y])
-                trellis.pixels[(y, current_step_row[y])] = color
-                mixer.play(samples[y], voice=y)
-                if midi_mode:
-                    noteval=100+y*12
-                    midiuart.write(bytes([0x90, noteval, 100]))
-                else:
-                    keyboard_layout.write(key_chars[(y*8+current_step_row[y])])
-                    keyboard_layout.write('\n')
-            else:
-                if  midi_mode:
-                    noteval=100+y*12
-                    midiuart.write(bytes([0x90, noteval, 0]))
-        else:
-            color = TICKER_COLOR     # no voice on
-            trellis.pixels[(y, current_step_row[y])] = color
-##################################################################
-##### modified above to create clock division ####
-##################################################################
+
     # handle button presses while we're waiting for the next tempo beat
-    # also check the accelerometer if we're using it, to adjust tempo
     while time.monotonic() - stamp < 60/tempo:
         # Check for pressed buttons
         pressed = set(trellis.pressed_keys)
-        #print(pressed)
-        for down in pressed - current_press:
-            print("Pressed down", down)
-            idle_count=0
-            print(time.monotonic())
-            y = down[0]
-            x = down[1]
-            beatset[y][x] = not beatset[y][x] # enable the voice
-            if beatset[y][x]:
-                color = DRUM_COLOR[y]
-            else:
-                color = 0
-            trellis.pixels[down] = color
-        current_press = pressed
+        #disabled temporarily for troubleshooting, this is needed to have background color display on startup
+        #for step in step_list: 
+        #    if step in pressed:
+        #        trellis.pixels[step] = ACTIVE_COLOR
+        #    else:
+        #        trellis.pixels[step] = INACTIVE_COLOR
+     
+  
+        pressed_list=list(pressed)
+        if len(pressed_list)>1:
+            print(pressed_list)
+            line=[]
+            path=[]
+            first_press=0
+            second_press=1
 
-        time.sleep(0.01)  # a little delay here helps avoid debounce annoyances
+            #
+            if pressed_list[first_press][column]==pressed_list[second_press][column]:
+                pass
+                print('pass')
+            elif pressed_list[first_press][column]<pressed_list[second_press][column]:    
+                print('problems in first column condition')
+                for step in range(pressed_list[first_press][column], pressed_list[second_press][column]+1):
+                    line.append((pressed_list[first_press][row], step))
+                path=line
+                
+            else:
+                print('problems in second column condition')
+                for step in range(pressed_list[second_press][column], pressed_list[first_press][column]+1):
+                    line.append((pressed_list[first_press][row], step))
+                path=sorted(line, reverse=True)
+                
+                last_point=(pressed_list[first_press][row], step)
+                print(last_point)
+                
+                
+            print(path)
+            line=[]
+
+            if pressed_list[first_press][row] == pressed_list[second_press][row]:
+                pass
+            elif pressed_list[first_press][row] < pressed_list[1][row]:
+                print('problems in first row condition')
+                for step in range(pressed_list[first_press][row]+1, pressed_list[second_press][row]+1):
+                    line.append((step, pressed_list[second_press][column]))
+                path+=line
+                
+            else:
+                print('problems in second row condition')
+                for step in range(pressed_list[second_press][row], pressed_list[first_press][row]+1):    
+                    line.append((step, pressed_list[first_press][column]))    
+                path+=sorted(line, reverse=True)
+
+            print(f"Points: {pressed_list}\nPath:\n{path}")
+
+            print(f"\n\n\nPoints: {pressed_list}\nPath:\n{path}\n\n\n") 
+            for step in step_list: 
+                if step in path:
+                    trellis.pixels[step] = ACTIVE_COLOR
+                else:
+                    trellis.pixels[step] = INACTIVE_COLOR
+  
+  
+  
+  
+        time.sleep(0.1)  # a little delay here helps avoid debounce annoyances
