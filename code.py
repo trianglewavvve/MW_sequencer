@@ -28,13 +28,14 @@ keyboard_layout = KeyboardLayoutUS(keyboard)  # We're in the US :)
 tempo = 190  # Starting BPM
 
 # four colors for the 4 voices, using 0 or 255 only will reduce buzz
-DRUM_COLOR = ((120, 0, 255),
-              (120, 0, 255),
-              (120, 0, 255),
-              (120, 0, 255))
+DRUM_COLOR = ((90, 0, 30),
+              (90, 0, 30),
+              (90, 0, 30),
+              (90, 0, 30))
 
 # the color for the sweeping ticker bar
-TICKER_COLOR = (0, 0, 255)
+TICKER_COLOR = (60, 0, 255)
+INACTIVE_COLOR = (0, 0, 120)
 
 # Our keypad + neopixel driver
 trellis = adafruit_trellism4.TrellisM4Express(rotation=90)
@@ -57,7 +58,12 @@ previous_step_row=[0, 0, 0, 0]
 cycle_count=0
 dividend_list=[[1, 1, 1, 1], [1, 1, 1, 2], [1, 1, 2, 4], [1, 2, 4, 8]]
 idle_count=0
-
+step_list=[]
+for y in range(4):
+    for x in range(8):
+        step_list.append((y, x))
+for step in step_list:
+    trellis.pixels[step] = INACTIVE_COLOR
 #'Everything above executes a single time on startup'
 #Everything below repeats on a loop
 
@@ -91,7 +97,7 @@ while True:
         if beatset[y][previous_step]:
             color = DRUM_COLOR[y]
         else:
-            color=0
+            color=INACTIVE_COLOR
         trellis.pixels[(y, previous_step)] = color
 
     # next beat!
