@@ -61,9 +61,9 @@ cycle_count=0
 dividend_list=[[1, 1, 1, 1], [1, 1, 1, 2], [1, 1, 2, 4], [1, 2, 4, 8]]
 idle_count=0
 step_list=[]
+active_cells=[]
 max_active_notes_per_row=4
 clear_after_idle_threshold=128
-active_cells=[]
 
 note_list=[]
 for octave in range(3, 6):
@@ -115,7 +115,9 @@ for v in range(4):
 #Everything below repeats on a loop
 
 while True:
+ 
     idle_count+=1
+    print(idle_count)
     stamp = time.monotonic()
     # redraw the last step to remove the ticker bar (e.g. 'normal' view)
 
