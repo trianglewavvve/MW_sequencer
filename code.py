@@ -61,6 +61,8 @@ dividend_list=[[1, 1, 1, 1], [1, 1, 1, 2], [1, 1, 2, 4], [1, 2, 4, 8]]
 idle_count=0
 step_list=[]
 max_active_notes_per_row=4
+clear_after_idle_threshold=32
+active_cells=[]
 for y in range(4):
     for x in range(8):
         step_list.append((y, x))
@@ -73,6 +75,26 @@ while True:
     idle_count+=1
     stamp = time.monotonic()
     # redraw the last step to remove the ticker bar (e.g. 'normal' view)
+
+    if idle_count>clear_after_idle_threshold:
+        for row in range(len(beatset)):
+            
+            for cell in range(0, len(beatset[row])):
+                if beatset[row][cell]==True:
+                    active_cells.append(cell)
+            if len(active_cells)>0:
+                try:
+                    deactivated_cell=(row, active_cells[random.randint(0, len(active_cells)-1)])
+                    beatset[deactivated_cell[0]][deactivated_cell[1]]=False
+                    trellis.pixels[deactivated_cell]=INACTIVE_COLOR
+                except:
+                    print('FAILED')
+                    print(len(active_cells))
+                    print(random.randint(0, len(active_cells)-1))
+                    #print(row, active_cells[random.randint(0, len(active_cells)-1)])
+                #print(deactivated_cell)
+            #print(f'row {y} exceeded note limit')
+
 
 ###########################################################################################
 ##### this is where I modified the code in order to accomplish clock division -David F.####
@@ -110,7 +132,9 @@ while True:
         else:
             if idle_count<119:
                 cycle_count+=1
-
+            else:
+                cycle_count=0
+            
     # draw the vertical ticker bar, with selected voices highlighted
     for y in range(4):
         if beatset[y][current_step_row[y]]:
@@ -166,7 +190,6 @@ while True:
                 color = INACTIVE_COLOR
             trellis.pixels[down] = color
         current_press = pressed
-
         time.sleep(0.01)  # a little delay here helps avoid debounce annoyances3
 
         
