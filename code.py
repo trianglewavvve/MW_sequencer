@@ -1,12 +1,13 @@
 #https://learn.adafruit.com/classic-midi-synth-control-with-trellis-m4/code-with-circuitpython
 
 import time
+import random
 import board
 import busio
 import audioio
 import adafruit_fancyled.adafruit_fancyled as fancy
 import adafruit_trellism4
-import adafruit_adxl34x
+#import adafruit_adxl34x
 import usb_hid
 from adafruit_hid.keyboard import Keyboard
 from adafruit_hid.keyboard_layout_us import KeyboardLayoutUS
@@ -59,6 +60,7 @@ cycle_count=0
 dividend_list=[[1, 1, 1, 1], [1, 1, 1, 2], [1, 1, 2, 4], [1, 2, 4, 8]]
 idle_count=0
 step_list=[]
+max_active_notes_per_row=4
 for y in range(4):
     for x in range(8):
         step_list.append((y, x))
@@ -146,11 +148,25 @@ while True:
             y = down[0]
             x = down[1]
             beatset[y][x] = not beatset[y][x] # enable the voice
+            active_cells=[]
             if beatset[y][x]:
+                if sum(beatset[y])>max_active_notes_per_row:
+                    for cell in range(0, len(beatset[y])):
+                        if beatset[y][cell]==True:
+                            active_cells.append(cell)
+                    deactivated_cell=(y, active_cells[random.randint(0, len(active_cells)-1)])
+                    beatset[deactivated_cell[0]][deactivated_cell[1]]=False
+                    trellis.pixels[deactivated_cell]=INACTIVE_COLOR
+                    #print(deactivated_cell)
+                    #print(f'row {y} exceeded note limit')
+                    #print(type(down))
                 color = DRUM_COLOR[y]
+                
             else:
-                color = 0
+                color = INACTIVE_COLOR
             trellis.pixels[down] = color
         current_press = pressed
 
-        time.sleep(0.01)  # a little delay here helps avoid debounce annoyances
+        time.sleep(0.01)  # a little delay here helps avoid debounce annoyances3
+
+        
