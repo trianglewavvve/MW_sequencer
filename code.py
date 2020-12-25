@@ -26,7 +26,8 @@ with open ("settings.txt", "r") as myfile:
 time.sleep(1)  # Sleep for a bit to avoid a race condition on some systems
 keyboard = Keyboard(usb_hid.devices)
 keyboard_layout = KeyboardLayoutUS(keyboard)  # We're in the US :)
-tempo = 190  # Starting BPM
+tempo = 240  # Starting BPM
+
 
 # four colors for the 4 voices, using 0 or 255 only will reduce buzz
 DRUM_COLOR = ((90, 0, 30),
@@ -61,13 +62,55 @@ dividend_list=[[1, 1, 1, 1], [1, 1, 1, 2], [1, 1, 2, 4], [1, 2, 4, 8]]
 idle_count=0
 step_list=[]
 max_active_notes_per_row=4
-clear_after_idle_threshold=32
+clear_after_idle_threshold=128
 active_cells=[]
+
+note_list=[]
+for octave in range(3, 6):
+  for note in ['C', 'E', 'F', 'G']:
+    note_list.append(f'\\samples\\{note}{octave}.wav')
+
 for y in range(4):
     for x in range(8):
         step_list.append((y, x))
 for step in step_list:
     trellis.pixels[step] = INACTIVE_COLOR
+SAMPLE_FOLDER = "/samples/"  # the name of the folder containing the samples
+# You get 4 voices, they must all have the same sample rate and must
+# all be mono or stereo (no mix-n-match!)
+VOICES = note_list
+# Parse the first file to figure out what format its in
+with open(VOICES[0], "rb") as f:
+    wav = audioio.WaveFile(f)
+    print("%d channels, %d bits per sample, %d Hz sample rate " %
+          (wav.channel_count, wav.bits_per_sample, wav.sample_rate))
+    # Audio playback object - we'll go with either mono or stereo depending on
+    # what we see in the first file
+    if wav.channel_count == 1:
+        audio = audioio.AudioOut(board.A1)
+    elif wav.channel_count == 2:
+        audio = audioio.AudioOut(board.A1, right_channel=board.A0)
+    else:
+        raise RuntimeError("Must be mono or stereo waves!")
+    mixer = audioio.Mixer(voice_count=4,
+                          sample_rate=wav.sample_rate,
+                          channel_count=wav.channel_count,
+                          bits_per_sample=wav.bits_per_sample,
+                          samples_signed=True)
+    audio.play(mixer)
+samples = []
+# Read the 4 wave files, convert to stereo samples, and store
+# (show load status on neopixels and play audio once loaded too!)
+for v in range(4):
+    #trellis.pixels[(v, 0)] = DRUM_COLOR[v]
+    wave_file = open(VOICES[v], "rb")
+    # OK we managed to open the wave OK
+    sample = audioio.WaveFile(wave_file)
+    while mixer.playing:
+        pass
+    samples.append(sample)
+# Clear all pixels
+
 #'Everything above executes a single time on startup'
 #Everything below repeats on a loop
 
@@ -145,6 +188,7 @@ while True:
                     noteval=100+y*12
                     midiuart.write(bytes([0x90, noteval, 100]))
                 else:
+                    mixer.play(samples[y], voice=y)
                     keyboard_layout.write(key_chars[(y*8+current_step_row[y])])
                     keyboard_layout.write('\n')
             else:
