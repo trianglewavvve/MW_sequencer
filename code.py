@@ -13,8 +13,58 @@ from adafruit_hid.keyboard import Keyboard
 from adafruit_hid.keyboard_layout_us import KeyboardLayoutUS
 from adafruit_hid.keycode import Keycode
 
-midiuart = busio.UART(board.SDA, board.SCL, baudrate=31250)
-midi_mode = False
+
+##MIDI####################################MIDI#######################################MIDI##
+import usb_midi
+import adafruit_midi
+import time
+
+# TimingClock is worth importing first if present as it
+# will make parsing more efficient for this high frequency event
+# Only importing what is used will save a little bit of memory
+
+# pylint: disable=unused-import
+from adafruit_midi.timing_clock import TimingClock
+from adafruit_midi.channel_pressure import ChannelPressure
+from adafruit_midi.control_change import ControlChange
+from adafruit_midi.note_off import NoteOff
+from adafruit_midi.note_on import NoteOn
+from adafruit_midi.pitch_bend import PitchBend
+from adafruit_midi.polyphonic_key_pressure import PolyphonicKeyPressure
+from adafruit_midi.program_change import ProgramChange
+from adafruit_midi.start import Start
+from adafruit_midi.stop import Stop
+from adafruit_midi.system_exclusive import SystemExclusive
+
+from adafruit_midi.midi_message import MIDIUnknownEvent
+
+midi = adafruit_midi.MIDI(
+    midi_in=usb_midi.ports[0],
+    midi_out=usb_midi.ports[1],
+    in_channel=(1, 2, 3),
+    out_channel=5,
+)
+
+tonic_dict = dict(zip(['a', 'b', 'c', 'd', 'e', 'f', 'g'],[0, 2, 3, 5, 7, 8, 10, 12]))
+scale_dict={'major':[0, 2, 4, 5, 7, 9, 11], 'major_5th':[0, 4, 7],'major_pent':[0, 2, 4,  7, 9],'minor':[0, 2, 3, 5, 7, 8, 10]}
+selected_scale_type='major_pent'
+selected_tonic='c'
+octave_low=1
+octave_high=8
+#note_length=24 # quarter note=24
+#note_time_interval=192*2
+def notes_in_key(tonic=24, scale_type=scale_dict['major'], octave_low=3, octave_high=7, note_offset=21):
+    note_list=[]
+    for octave in range(octave_low, octave_high):
+        root_note=octave*12+tonic+note_offset
+        note_list+=[x+root_note for x in scale_type]
+    return note_list
+current_key=notes_in_key(tonic_dict[selected_tonic], scale_dict[selected_scale_type], octave_low, octave_high)
+##MIDI####################################MIDI#######################################MIDI##
+
+
+
+
 
 # This is the setup to have a "settings" file that could set parameters on startup, currently unused -DF
 with open ("settings.txt", "r") as myfile:
@@ -64,7 +114,7 @@ step_list=[]
 active_cells=[]
 max_active_notes_per_row=4
 clear_after_idle_threshold=128
-
+midi_mode=True
 note_list=[]
 for octave in range(3, 6):
   for note in ['C', 'E', 'F', 'G']:
@@ -113,11 +163,10 @@ for v in range(4):
 
 #'Everything above executes a single time on startup'
 #Everything below repeats on a loop
-
 while True:
 
     idle_count+=1
-    print(idle_count)
+    #print(idle_count)
     stamp = time.monotonic()
     # redraw the last step to remove the ticker bar (e.g. 'normal' view)
 
@@ -157,16 +206,21 @@ while True:
         #print(current_step_row)
 
         color = 0
+        new_note=60
         if beatset[y][current_step_row[y]]:
             color = DRUM_COLOR[y]
             trellis.pixels[(y, current_step_row[y])] = color
+            midi.send(NoteOn(new_note, 100))
         previous_step=current_step_row[y]-1
         if previous_step<0:
             previous_step=7
         if beatset[y][previous_step]:
             color = DRUM_COLOR[y]
+            midi.send(NoteOn(new_note, 100))
+            print(y, current_step_row[y])
         else:
             color=INACTIVE_COLOR
+            midi.send(NoteOff(new_note, 0x00))
         trellis.pixels[(y, previous_step)] = color
 
     # next beat!
@@ -187,16 +241,14 @@ while True:
                 color = (200, 0, 255)
                 trellis.pixels[(y, current_step_row[y])] = color
                 if midi_mode:
-                    noteval=100+y*12
-                    midiuart.write(bytes([0x90, noteval, 100]))
+                    pass
                 else:
                     mixer.play(samples[y], voice=y)
                     keyboard_layout.write(key_chars[(y*8+current_step_row[y])])
                     keyboard_layout.write('\n')
             else:
                 if  midi_mode:
-                    noteval=100+y*12
-                    midiuart.write(bytes([0x90, noteval, 0]))
+                    pass
 
 
         else:
@@ -236,5 +288,5 @@ while True:
                 color = INACTIVE_COLOR
             trellis.pixels[down] = color
         current_press = pressed
-        time.sleep(0.01)  # a little delay here helps avoid debounce annoyances3
+        time.sleep(0.01)  # a little delay here helps avoid debounce annoyances
 
