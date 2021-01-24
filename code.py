@@ -256,13 +256,14 @@ while True:
                 active_notes.append(new_note)
                 if midi_mode:
                     midi.send(NoteOn(new_note, 100))
+                    #pass
                 else:
                     mixer.play(samples[y], voice=y)
                     keyboard_layout.write(key_chars[(y*8+current_step_row[y])])
                     keyboard_layout.write('\n')
             else:
                 if  midi_mode:
-                    #midi.send(NoteOff(new_note, 100))
+                    midi.send(NoteOff(new_note, 0))
                     #doesn't work
                     pass
 
