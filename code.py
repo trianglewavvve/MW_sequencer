@@ -161,10 +161,22 @@ for v in range(4):
     samples.append(sample)
 # Clear all pixels
 
+active_notes=[]
+
 #'Everything above executes a single time on startup'
 #Everything below repeats on a loop
 while True:
-
+    
+    #clear all midi notes
+    new_note=60
+    midi.send(NoteOff(new_note, 0x00))
+    
+    if len(active_notes)>0:
+        for note in active_notes:
+            midi.send(NoteOff(note, 0x00))
+        active_notes=[]
+    
+    
     idle_count+=1
     #print(idle_count)
     stamp = time.monotonic()
@@ -206,21 +218,21 @@ while True:
         #print(current_step_row)
 
         color = 0
-        new_note=60
+        
         if beatset[y][current_step_row[y]]:
             color = DRUM_COLOR[y]
             trellis.pixels[(y, current_step_row[y])] = color
-            midi.send(NoteOn(new_note, 100))
+            #midi.send(NoteOn(new_note, 100))
         previous_step=current_step_row[y]-1
         if previous_step<0:
             previous_step=7
         if beatset[y][previous_step]:
             color = DRUM_COLOR[y]
-            midi.send(NoteOn(new_note, 100))
-            print(y, current_step_row[y])
+            #midi.send(NoteOn(new_note, 100))
+            print(y, current_step_row[y], y*8+current_step_row[y])
         else:
             color=INACTIVE_COLOR
-            midi.send(NoteOff(new_note, 0x00))
+            #midi.send(NoteOff(new_note, 0x00))
         trellis.pixels[(y, previous_step)] = color
 
     # next beat!
@@ -240,14 +252,18 @@ while True:
             if previous_step_row[y]!=current_step_row[y]:
                 color = (200, 0, 255)
                 trellis.pixels[(y, current_step_row[y])] = color
+                new_note=current_key[y*8+current_step_row[y]]
+                active_notes.append(new_note)
                 if midi_mode:
-                    pass
+                    midi.send(NoteOn(new_note, 100))
                 else:
                     mixer.play(samples[y], voice=y)
                     keyboard_layout.write(key_chars[(y*8+current_step_row[y])])
                     keyboard_layout.write('\n')
             else:
                 if  midi_mode:
+                    #midi.send(NoteOff(new_note, 100))
+                    #doesn't work
                     pass
 
 
