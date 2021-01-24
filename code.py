@@ -115,7 +115,7 @@ for v in range(4):
 #Everything below repeats on a loop
 
 while True:
- 
+
     idle_count+=1
     print(idle_count)
     stamp = time.monotonic()
@@ -123,7 +123,7 @@ while True:
 
     if idle_count>clear_after_idle_threshold:
         for row in range(len(beatset)):
-            
+
             for cell in range(0, len(beatset[row])):
                 if beatset[row][cell]==True:
                     active_cells.append(cell)
@@ -179,7 +179,7 @@ while True:
                 cycle_count+=1
             else:
                 cycle_count=0
-            
+
     # draw the vertical ticker bar, with selected voices highlighted
     for y in range(4):
         if beatset[y][current_step_row[y]]:
@@ -231,11 +231,10 @@ while True:
                     #print(f'row {y} exceeded note limit')
                     #print(type(down))
                 color = DRUM_COLOR[y]
-                
+
             else:
                 color = INACTIVE_COLOR
             trellis.pixels[down] = color
         current_press = pressed
         time.sleep(0.01)  # a little delay here helps avoid debounce annoyances3
 
-        
