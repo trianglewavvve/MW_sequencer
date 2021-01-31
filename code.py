@@ -130,53 +130,23 @@ SAMPLE_FOLDER = "/samples/"  # the name of the folder containing the samples
 # all be mono or stereo (no mix-n-match!)
 VOICES = note_list
 # Parse the first file to figure out what format its in
-with open(VOICES[0], "rb") as f:
-    wav = audioio.WaveFile(f)
-    print("%d channels, %d bits per sample, %d Hz sample rate " %
-          (wav.channel_count, wav.bits_per_sample, wav.sample_rate))
-    # Audio playback object - we'll go with either mono or stereo depending on
-    # what we see in the first file
-    if wav.channel_count == 1:
-        audio = audioio.AudioOut(board.A1)
-    elif wav.channel_count == 2:
-        audio = audioio.AudioOut(board.A1, right_channel=board.A0)
-    else:
-        raise RuntimeError("Must be mono or stereo waves!")
-    mixer = audioio.Mixer(voice_count=4,
-                          sample_rate=wav.sample_rate,
-                          channel_count=wav.channel_count,
-                          bits_per_sample=wav.bits_per_sample,
-                          samples_signed=True)
-    audio.play(mixer)
-samples = []
-# Read the 4 wave files, convert to stereo samples, and store
-# (show load status on neopixels and play audio once loaded too!)
-for v in range(4):
-    #trellis.pixels[(v, 0)] = DRUM_COLOR[v]
-    wave_file = open(VOICES[v], "rb")
-    # OK we managed to open the wave OK
-    sample = audioio.WaveFile(wave_file)
-    while mixer.playing:
-        pass
-    samples.append(sample)
-# Clear all pixels
 
 active_notes=[]
 
 #'Everything above executes a single time on startup'
 #Everything below repeats on a loop
 while True:
-    
+
     #clear all midi notes
     new_note=60
     midi.send(NoteOff(new_note, 0x00))
-    
+
     if len(active_notes)>0:
         for note in active_notes:
             midi.send(NoteOff(note, 0x00))
         active_notes=[]
-    
-    
+
+
     idle_count+=1
     #print(idle_count)
     stamp = time.monotonic()
@@ -218,7 +188,7 @@ while True:
         #print(current_step_row)
 
         color = 0
-        
+
         if beatset[y][current_step_row[y]]:
             color = DRUM_COLOR[y]
             trellis.pixels[(y, current_step_row[y])] = color
@@ -260,7 +230,7 @@ while True:
                 else:
                     mixer.play(samples[y], voice=y)
                     keyboard_layout.write(key_chars[(y*8+current_step_row[y])])
-                    keyboard_layout.write('\n')
+                    #keyboard_layout.write('\n')
             else:
                 if  midi_mode:
                     midi.send(NoteOff(new_note, 0))
@@ -306,4 +276,3 @@ while True:
             trellis.pixels[down] = color
         current_press = pressed
         time.sleep(0.01)  # a little delay here helps avoid debounce annoyances
-
