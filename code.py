@@ -12,6 +12,7 @@ import usb_hid
 from adafruit_hid.keyboard import Keyboard
 from adafruit_hid.keyboard_layout_us import KeyboardLayoutUS
 from adafruit_hid.keycode import Keycode
+from random import randrange
 
 
 ##MIDI####################################MIDI#######################################MIDI##
@@ -44,7 +45,7 @@ midi = adafruit_midi.MIDI(
     in_channel=(1, 2, 3),
     out_channel=5,
 )
-
+row_sequence=[[], [], [], []]
 tonic_dict = dict(zip(['a', 'b', 'c', 'd', 'e', 'f', 'g'],[0, 2, 3, 5, 7, 8, 10, 12]))
 scale_dict={'major':[0, 2, 4, 5, 7, 9, 11], 'major_5th':[0, 4, 7],'major_pent':[0, 2, 4,  7, 9],'minor':[0, 2, 3, 5, 7, 8, 10]}
 selected_scale_type='major_pent'
@@ -67,8 +68,8 @@ current_key=notes_in_key(tonic_dict[selected_tonic], scale_dict[selected_scale_t
 
 
 # This is the setup to have a "settings" file that could set parameters on startup, currently unused -DF
-with open ("settings.txt", "r") as myfile:
-    data=myfile.readlines()
+#with open ("settings.txt", "r") as myfile:
+#    data=myfile.readlines()
 #print(data[0])
 #print(data[1])
 
@@ -91,7 +92,7 @@ INACTIVE_COLOR = (0, 0, 120)
 
 # Our keypad + neopixel driver
 trellis = adafruit_trellism4.TrellisM4Express(rotation=90)
-trellis.pixels.brightness = (0.31)
+trellis.pixels.brightness = (0.15)
 
 # Clear all pixels
 trellis.pixels.fill(0)
@@ -113,7 +114,7 @@ idle_count=0
 step_list=[]
 active_cells=[]
 max_active_notes_per_row=4
-clear_after_idle_threshold=128
+clear_after_idle_threshold=128000
 midi_mode=True
 note_list=[]
 for octave in range(3, 6):
@@ -133,6 +134,9 @@ VOICES = note_list
 
 active_notes=[]
 
+for y in range(4):
+    row_sequence[y]=[randrange(y*8, y*8+7) for x in range(8)]
+
 #'Everything above executes a single time on startup'
 #Everything below repeats on a loop
 while True:
@@ -148,7 +152,6 @@ while True:
 
 
     idle_count+=1
-    #print(idle_count)
     stamp = time.monotonic()
     # redraw the last step to remove the ticker bar (e.g. 'normal' view)
 
@@ -167,9 +170,6 @@ while True:
                     print('FAILED')
                     print(len(active_cells))
                     print(random.randint(0, len(active_cells)-1))
-                    #print(row, active_cells[random.randint(0, len(active_cells)-1)])
-                #print(deactivated_cell)
-            #print(f'row {y} exceeded note limit')
 
 
 ###########################################################################################
@@ -179,13 +179,13 @@ while True:
     for y in range(4):
         #dividend=2**(y)
         dividend = dividend_list[cycle_count][y]
+        dividend=1
         previous_step_row[y]=current_step_row[y]
         if current_step_row[y]<8:
             if (current_step)%dividend==0:
                 current_step_row[y]+=1
                 if current_step_row[y]==8:
                     current_step_row[y]=0
-        #print(current_step_row)
 
         color = 0
 
@@ -198,11 +198,8 @@ while True:
             previous_step=7
         if beatset[y][previous_step]:
             color = DRUM_COLOR[y]
-            #midi.send(NoteOn(new_note, 100))
-            print(y, current_step_row[y], y*8+current_step_row[y])
         else:
             color=INACTIVE_COLOR
-            #midi.send(NoteOff(new_note, 0x00))
         trellis.pixels[(y, previous_step)] = color
 
     # next beat!
@@ -211,22 +208,37 @@ while True:
         if cycle_count==3:
             cycle_count=0
         else:
-            if idle_count<119:
+            if idle_count<clear_after_idle_threshold+1:
                 cycle_count+=1
+                
+                for y in range(4):
+                    case=randrange(0, 4)
+                    if case==0:
+                        row_sequence[y]=list(reversed(row_sequence[y]))
+                    if case==1:
+                        if max(row_sequence[y])< len(current_key)-1:
+                            row_sequence[y]=[x+1 for x in row_sequence[y]]
+                    if case==2:
+                        if min(row_sequence[y])> 1:
+                            row_sequence[y]=[x-1 for x in row_sequence[y]]
+                        
+                print(row_sequence)
             else:
                 cycle_count=0
 
     # draw the vertical ticker bar, with selected voices highlighted
-    for y in range(4):
+    for y in range(4):    
+        
         if beatset[y][current_step_row[y]]:
             if previous_step_row[y]!=current_step_row[y]:
                 color = (200, 0, 255)
                 trellis.pixels[(y, current_step_row[y])] = color
-                new_note=current_key[y*8+current_step_row[y]]
+                #new_note=current_key[y*8+current_step_row[y]]
+                new_note=current_key[row_sequence[y][current_step_row[y]]]
                 active_notes.append(new_note)
                 if midi_mode:
                     midi.send(NoteOn(new_note, 100))
-                    #pass
+
                 else:
                     mixer.play(samples[y], voice=y)
                     keyboard_layout.write(key_chars[(y*8+current_step_row[y])])
@@ -266,9 +278,6 @@ while True:
                     deactivated_cell=(y, active_cells[random.randint(0, len(active_cells)-1)])
                     beatset[deactivated_cell[0]][deactivated_cell[1]]=False
                     trellis.pixels[deactivated_cell]=INACTIVE_COLOR
-                    #print(deactivated_cell)
-                    #print(f'row {y} exceeded note limit')
-                    #print(type(down))
                 color = DRUM_COLOR[y]
 
             else:
