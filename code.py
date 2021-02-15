@@ -15,6 +15,12 @@ from adafruit_hid.keycode import Keycode
 from random import randrange
 
 
+
+
+
+
+
+
 ##MIDI####################################MIDI#######################################MIDI##
 import usb_midi
 import adafruit_midi
@@ -54,7 +60,7 @@ octave_low=1
 octave_high=8
 #note_length=24 # quarter note=24
 #note_time_interval=192*2
-def notes_in_key(tonic=24, scale_type=scale_dict['major'], octave_low=3, octave_high=7, note_offset=21):
+def notes_in_key(tonic=24, scale_type=scale_dict['major'], octave_low=1, octave_high=4, note_offset=21):
     note_list=[]
     for octave in range(octave_low, octave_high):
         root_note=octave*12+tonic+note_offset
@@ -92,7 +98,7 @@ INACTIVE_COLOR = (0, 0, 120)
 
 # Our keypad + neopixel driver
 trellis = adafruit_trellism4.TrellisM4Express(rotation=90)
-trellis.pixels.brightness = (0.15)
+trellis.pixels.brightness = (0.2)
 
 # Clear all pixels
 trellis.pixels.fill(0)
@@ -116,6 +122,7 @@ active_cells=[]
 max_active_notes_per_row=4
 clear_after_idle_threshold=128000
 midi_mode=True
+division_enabled=False
 note_list=[]
 for octave in range(3, 6):
   for note in ['C', 'E', 'F', 'G']:
@@ -135,16 +142,12 @@ VOICES = note_list
 active_notes=[]
 
 for y in range(4):
-    row_sequence[y]=[randrange(y*8, y*8+7) for x in range(8)]
-
+    #row_sequence[y]=[randrange(y*8, y*8+7) for x in range(8)]
+    row_sequence[y]=[randrange(y*5, y*5+7) for x in range(8)]
 #'Everything above executes a single time on startup'
 #Everything below repeats on a loop
+#beatset=[[True, False, False, False, False, False, False, False], [True, False, True, False, False, False, False, False], [False, False, False, False, False, False, False, False], [False, False, False, False, False, False, False, False]]
 while True:
-
-    #clear all midi notes
-    new_note=60
-    midi.send(NoteOff(new_note, 0x00))
-
     if len(active_notes)>0:
         for note in active_notes:
             midi.send(NoteOff(note, 0x00))
@@ -168,8 +171,8 @@ while True:
                     trellis.pixels[deactivated_cell]=INACTIVE_COLOR
                 except:
                     print('FAILED')
-                    print(len(active_cells))
-                    print(random.randint(0, len(active_cells)-1))
+                    #print(len(active_cells))
+                    #print(random.randint(0, len(active_cells)-1))
 
 
 ###########################################################################################
@@ -177,9 +180,10 @@ while True:
 ###########################################################################################
 
     for y in range(4):
-        #dividend=2**(y)
-        dividend = dividend_list[cycle_count][y]
-        dividend=1
+        if division_enabled:
+            dividend = dividend_list[cycle_count][y]
+        else:
+            dividend=1
         previous_step_row[y]=current_step_row[y]
         if current_step_row[y]<8:
             if (current_step)%dividend==0:
@@ -192,7 +196,6 @@ while True:
         if beatset[y][current_step_row[y]]:
             color = DRUM_COLOR[y]
             trellis.pixels[(y, current_step_row[y])] = color
-            #midi.send(NoteOn(new_note, 100))
         previous_step=current_step_row[y]-1
         if previous_step<0:
             previous_step=7
@@ -210,25 +213,24 @@ while True:
         else:
             if idle_count<clear_after_idle_threshold+1:
                 cycle_count+=1
-                
+
                 for y in range(4):
                     case=randrange(0, 4)
                     if case==0:
                         row_sequence[y]=list(reversed(row_sequence[y]))
                     if case==1:
-                        if max(row_sequence[y])< len(current_key)-1:
+                        if max(row_sequence[y])< y*8+8:
                             row_sequence[y]=[x+1 for x in row_sequence[y]]
                     if case==2:
-                        if min(row_sequence[y])> 1:
+                        if min(row_sequence[y])> y*8-3:
                             row_sequence[y]=[x-1 for x in row_sequence[y]]
-                        
-                print(row_sequence)
+
             else:
                 cycle_count=0
 
     # draw the vertical ticker bar, with selected voices highlighted
-    for y in range(4):    
-        
+    #print(trellis.pixels[1, 0])
+    for y in range(4):
         if beatset[y][current_step_row[y]]:
             if previous_step_row[y]!=current_step_row[y]:
                 color = (200, 0, 255)
@@ -238,7 +240,7 @@ while True:
                 active_notes.append(new_note)
                 if midi_mode:
                     midi.send(NoteOn(new_note, 100))
-
+                    print(new_note)
                 else:
                     mixer.play(samples[y], voice=y)
                     keyboard_layout.write(key_chars[(y*8+current_step_row[y])])
@@ -248,8 +250,6 @@ while True:
                     midi.send(NoteOff(new_note, 0))
                     #doesn't work
                     pass
-
-
         else:
             color = TICKER_COLOR     # no voice on
             trellis.pixels[(y, current_step_row[y])] = color
