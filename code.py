@@ -106,7 +106,7 @@ trellis.pixels.fill(0)
 # Our global state
 current_step = 7 # we actually start on the last step since we increment first
 # the state of the sequencer
-beatset = [[False] * 8, [False] * 8, [False] * 8, [False] * 8]
+beatset = [[0] * 8, [0] * 8, [0] * 8, [0] * 8]
 prior_beatset=beatset
 # currently pressed buttons
 current_press = set()
@@ -146,8 +146,19 @@ for y in range(4):
     row_sequence[y]=[randrange(y*5, y*5+7) for x in range(8)]
 #'Everything above executes a single time on startup'
 #Everything below repeats on a loop
-#beatset=[[True, False, False, False, False, False, False, False], [True, False, True, False, False, False, False, False], [False, False, False, False, False, False, False, False], [False, False, False, False, False, False, False, False]]
+pattern0=[[0, 0, 0, 1, 1, 0, 0, 0], [0, 0, 1, 0, 0, 1, 0, 0], [0, 1, 0, 1, 1, 0, 1, 0], [1, 0, 1, 0, 0, 1, 0, 1]]
+pattern1=[[1, 0, 1, 0, 0, 1, 0, 1], [0, 1, 0, 1, 1, 0, 1, 0], [0, 0, 1, 0, 0, 1, 0, 0], [0, 0, 0, 1, 1, 0, 0, 0]]
+pattern2=[[1, 0, 1, 0, 1, 0, 1, 0], [0, 1, 0, 1, 0, 1, 0, 1], [0, 1, 0, 1, 0, 1, 0, 1], [1, 0, 1, 0, 1, 0, 1, 0]]
+pattern3=[[1, 0, 1, 0, 1, 0, 1, 0], [0, 1, 0, 1, 0, 1, 0, 1], [1, 0, 1, 0, 1, 0, 1, 0], [0, 1, 0, 1, 0, 1, 0, 1]]
+pattern4=[[1, 1, 0, 0, 0, 0, 1, 1], [0, 0, 1, 1, 1, 1, 0, 0], [0, 0, 1, 1, 1, 1, 0, 0], [1, 1, 0, 0, 0, 0, 1, 1]]
+pattern5=[[1, 0, 1, 0, 0, 1, 0, 1], [0, 0, 0, 1, 1, 0, 0, 0], [0, 0, 0, 1, 1, 0, 0, 0], [1, 0, 1, 0, 0, 1, 0, 1]]
+
+beatset=pattern0
 while True:
+    if idle_count%16==0:
+        if idle_count>0:
+            beatset=pattern5
+            print(beatset)
     if len(active_notes)>0:
         for note in active_notes:
             midi.send(NoteOff(note, 0x00))
@@ -162,12 +173,12 @@ while True:
         for row in range(len(beatset)):
 
             for cell in range(0, len(beatset[row])):
-                if beatset[row][cell]==True:
+                if beatset[row][cell]==1:
                     active_cells.append(cell)
             if len(active_cells)>0:
                 try:
                     deactivated_cell=(row, active_cells[random.randint(0, len(active_cells)-1)])
-                    beatset[deactivated_cell[0]][deactivated_cell[1]]=False
+                    beatset[deactivated_cell[0]][deactivated_cell[1]]=0
                     trellis.pixels[deactivated_cell]=INACTIVE_COLOR
                 except:
                     print('FAILED')
@@ -229,7 +240,6 @@ while True:
                 cycle_count=0
 
     # draw the vertical ticker bar, with selected voices highlighted
-    #print(trellis.pixels[1, 0])
     for y in range(4):
         if beatset[y][current_step_row[y]]:
             if previous_step_row[y]!=current_step_row[y]:
@@ -240,7 +250,6 @@ while True:
                 active_notes.append(new_note)
                 if midi_mode:
                     midi.send(NoteOn(new_note, 100))
-                    print(new_note)
                 else:
                     mixer.play(samples[y], voice=y)
                     keyboard_layout.write(key_chars[(y*8+current_step_row[y])])
@@ -268,15 +277,15 @@ while True:
             idle_count=0
             y = down[0]
             x = down[1]
-            beatset[y][x] = not beatset[y][x] # enable the voice
+            beatset[y][x] = (not beatset[y][x])*1 # enable the voice
             active_cells=[]
             if beatset[y][x]:
                 if sum(beatset[y])>max_active_notes_per_row:
                     for cell in range(0, len(beatset[y])):
-                        if beatset[y][cell]==True:
+                        if beatset[y][cell]==1:
                             active_cells.append(cell)
                     deactivated_cell=(y, active_cells[random.randint(0, len(active_cells)-1)])
-                    beatset[deactivated_cell[0]][deactivated_cell[1]]=False
+                    beatset[deactivated_cell[0]][deactivated_cell[1]]=0
                     trellis.pixels[deactivated_cell]=INACTIVE_COLOR
                 color = DRUM_COLOR[y]
 
