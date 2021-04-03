@@ -22,6 +22,7 @@ from random import randrange
 
 
 ##MIDI####################################MIDI#######################################MIDI##
+midiuart = busio.UART(board.SDA, board.SCL, baudrate=31250)
 import usb_midi
 import adafruit_midi
 import time
@@ -49,7 +50,7 @@ midi = adafruit_midi.MIDI(
     midi_in=usb_midi.ports[0],
     midi_out=usb_midi.ports[1],
     in_channel=(1, 2, 3),
-    out_channel=5,
+    out_channel=0,
 )
 row_sequence=[[], [], [], []]
 tonic_dict = dict(zip(['a', 'b', 'c', 'd', 'e', 'f', 'g'],[0, 2, 3, 5, 7, 8, 10, 12]))
@@ -143,25 +144,44 @@ active_notes=[]
 
 for y in range(4):
     #row_sequence[y]=[randrange(y*8, y*8+7) for x in range(8)]
-    row_sequence[y]=[randrange(y*5, y*5+7) for x in range(8)]
+    row_sequence[y]=[randrange(y*4, y*5+3) for x in range(8)]
 #'Everything above executes a single time on startup'
 #Everything below repeats on a loop
-pattern0=[[0, 0, 0, 1, 1, 0, 0, 0], [0, 0, 1, 0, 0, 1, 0, 0], [0, 1, 0, 1, 1, 0, 1, 0], [1, 0, 1, 0, 0, 1, 0, 1]]
-pattern1=[[1, 0, 1, 0, 0, 1, 0, 1], [0, 1, 0, 1, 1, 0, 1, 0], [0, 0, 1, 0, 0, 1, 0, 0], [0, 0, 0, 1, 1, 0, 0, 0]]
-pattern2=[[1, 0, 1, 0, 1, 0, 1, 0], [0, 1, 0, 1, 0, 1, 0, 1], [0, 1, 0, 1, 0, 1, 0, 1], [1, 0, 1, 0, 1, 0, 1, 0]]
-pattern3=[[1, 0, 1, 0, 1, 0, 1, 0], [0, 1, 0, 1, 0, 1, 0, 1], [1, 0, 1, 0, 1, 0, 1, 0], [0, 1, 0, 1, 0, 1, 0, 1]]
-pattern4=[[1, 1, 0, 0, 0, 0, 1, 1], [0, 0, 1, 1, 1, 1, 0, 0], [0, 0, 1, 1, 1, 1, 0, 0], [1, 1, 0, 0, 0, 0, 1, 1]]
-pattern5=[[1, 0, 1, 0, 0, 1, 0, 1], [0, 0, 0, 1, 1, 0, 0, 0], [0, 0, 0, 1, 1, 0, 0, 0], [1, 0, 1, 0, 0, 1, 0, 1]]
+pattern_bank={0:[[0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0]],
+1:[[1, 0, 1, 0, 0, 1, 0, 1], [0, 1, 0, 1, 1, 0, 1, 0], [0, 0, 1, 0, 0, 1, 0, 0], [0, 0, 0, 1, 1, 0, 0, 0]],
+2:[[1, 0, 1, 0, 1, 0, 1, 0], [0, 1, 0, 1, 0, 1, 0, 1], [0, 1, 0, 1, 0, 1, 0, 1], [1, 0, 1, 0, 1, 0, 1, 0]],
+3:[[1, 0, 1, 0, 1, 0, 1, 0], [0, 1, 0, 1, 0, 1, 0, 1], [1, 0, 1, 0, 1, 0, 1, 0], [0, 1, 0, 1, 0, 1, 0, 1]],
+4:[[1, 1, 0, 0, 0, 0, 1, 1], [0, 0, 1, 1, 1, 1, 0, 0], [0, 0, 1, 1, 1, 1, 0, 0], [1, 1, 0, 0, 0, 0, 1, 1]],
+5:[[1, 0, 1, 0, 0, 1, 0, 1], [0, 0, 0, 1, 1, 0, 0, 0], [0, 0, 0, 1, 1, 0, 0, 0], [1, 0, 1, 0, 0, 1, 0, 1]],
+6:[[1, 0, 1, 0, 1, 0, 1, 0], [0, 1, 0, 1, 0, 1, 0, 1], [0, 1, 0, 1, 0, 1, 0, 1], [1, 0, 1, 0, 1, 0, 1, 0]],
+7:[[1, 0, 0, 1, 1, 0, 0, 1], [0, 1, 1, 0, 0, 1, 1, 0], [0, 1, 1, 0, 0, 1, 1, 0], [1, 0, 0, 1, 1, 0, 0, 1]],
+8:[[1, 1, 0, 0, 0, 0, 1, 1], [0, 0, 1, 1, 1, 1, 0, 0], [0, 0, 1, 1, 1, 1, 0, 0], [1, 1, 0, 0, 0, 0, 1, 1]],
+9:[[0, 0, 0, 1, 1, 0, 0, 0], [0, 0, 1, 0, 0, 1, 0, 0], [0, 1, 0, 1, 1, 0, 1, 0], [1, 0, 1, 0, 0, 1, 0, 1]]}
 
-beatset=pattern0
+for note in range(10,110):
+    midi.send(NoteOff(note, 0x00))
+    midiuart.write(bytes([0x90, note, 0]))  # note off
+
+
+beatset=pattern_bank[random.randint(1, 9)]
 while True:
-    if idle_count%16==0:
-        if idle_count>0:
-            beatset=pattern5
-            print(beatset)
+
+     #CHANGE THE PATTERN IF IDLE
+    if idle_count==32:
+        pattern_number=random.randint(1, 9)
+        print(pattern_number)
+        beatset=pattern_bank[pattern_number]
+        #print(beatset)
+        idle_count=0
+        print(beatset)
+
+
+
     if len(active_notes)>0:
         for note in active_notes:
             midi.send(NoteOff(note, 0x00))
+            midiuart.write(bytes([0x90, note, 0]))  # note off
+
         active_notes=[]
 
 
@@ -250,13 +270,15 @@ while True:
                 active_notes.append(new_note)
                 if midi_mode:
                     midi.send(NoteOn(new_note, 100))
+                    midiuart.write(bytes([0x90, new_note, 100]))
                 else:
-                    mixer.play(samples[y], voice=y)
                     keyboard_layout.write(key_chars[(y*8+current_step_row[y])])
+                    print(key_chars[(y*8+current_step_row[y])])
                     #keyboard_layout.write('\n')
             else:
                 if  midi_mode:
                     midi.send(NoteOff(new_note, 0))
+                    midiuart.write(bytes([0x90, new_note, 0]))  # note off
                     #doesn't work
                     pass
         else:
