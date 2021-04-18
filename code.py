@@ -52,13 +52,15 @@ midi = adafruit_midi.MIDI(
     in_channel=(1, 2, 3),
     out_channel=0,
 )
+high_note_limit=95
+low_note_limit=48
 row_sequence=[[], [], [], []]
 tonic_dict = dict(zip(['a', 'b', 'c', 'd', 'e', 'f', 'g'],[0, 2, 3, 5, 7, 8, 10, 12]))
 scale_dict={'major':[0, 2, 4, 5, 7, 9, 11], 'major_5th':[0, 4, 7],'major_pent':[0, 2, 4,  7, 9],'minor':[0, 2, 3, 5, 7, 8, 10]}
 selected_scale_type='major_pent'
 selected_tonic='c'
-octave_low=1
-octave_high=8
+octave_low=2
+octave_high=6
 #note_length=24 # quarter note=24
 #note_time_interval=192*2
 def notes_in_key(tonic=24, scale_type=scale_dict['major'], octave_low=1, octave_high=4, note_offset=21):
@@ -69,7 +71,6 @@ def notes_in_key(tonic=24, scale_type=scale_dict['major'], octave_low=1, octave_
     return note_list
 current_key=notes_in_key(tonic_dict[selected_tonic], scale_dict[selected_scale_type], octave_low, octave_high)
 ##MIDI####################################MIDI#######################################MIDI##
-
 
 
 
@@ -99,7 +100,7 @@ INACTIVE_COLOR = (0, 0, 120)
 
 # Our keypad + neopixel driver
 trellis = adafruit_trellism4.TrellisM4Express(rotation=90)
-trellis.pixels.brightness = (0.2)
+trellis.pixels.brightness = (0.02)
 
 # Clear all pixels
 trellis.pixels.fill(0)
@@ -125,28 +126,30 @@ clear_after_idle_threshold=128000
 midi_mode=True
 division_enabled=False
 note_list=[]
-for octave in range(3, 6):
-  for note in ['C', 'E', 'F', 'G']:
-    note_list.append(f'\\samples\\{note}{octave}.wav')
+#for octave in range(3, 6):
+#  for note in ['C', 'E', 'F', 'G']:
+#    note_list.append(f'\\samples\\{note}{octave}.wav')
 
 for y in range(4):
     for x in range(8):
         step_list.append((y, x))
 for step in step_list:
     trellis.pixels[step] = INACTIVE_COLOR
-SAMPLE_FOLDER = "/samples/"  # the name of the folder containing the samples
-# You get 4 voices, they must all have the same sample rate and must
-# all be mono or stereo (no mix-n-match!)
-VOICES = note_list
-# Parse the first file to figure out what format its in
+
 
 active_notes=[]
 
+#### generate initial sequence
+#for y in range(4):
+#    #row_sequence[y]=[randrange(y*8, y*8+7) for x in range(8)]
+#    row_sequence[y]=([y*3+x for x in range(y*2, y*2+4)]*4)[:9]
+#    print(row_sequence)
+    
 for y in range(4):
-    #row_sequence[y]=[randrange(y*8, y*8+7) for x in range(8)]
-    row_sequence[y]=[randrange(y*4, y*5+3) for x in range(8)]
-#'Everything above executes a single time on startup'
-#Everything below repeats on a loop
+    notes_per_row=len(current_key)//4
+    row_sequence[y]=[randrange(notes_per_row)+y*notes_per_row for x in range(8)]
+print(row_sequence)
+
 pattern_bank={0:[[0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0]],
 1:[[1, 0, 1, 0, 0, 1, 0, 1], [0, 1, 0, 1, 1, 0, 1, 0], [0, 0, 1, 0, 0, 1, 0, 0], [0, 0, 0, 1, 1, 0, 0, 0]],
 2:[[1, 0, 1, 0, 1, 0, 1, 0], [0, 1, 0, 1, 0, 1, 0, 1], [0, 1, 0, 1, 0, 1, 0, 1], [1, 0, 1, 0, 1, 0, 1, 0]],
@@ -164,16 +167,18 @@ for note in range(10,110):
 
 
 beatset=pattern_bank[random.randint(1, 9)]
+
+#'Everything above executes a single time on startup'
+#Everything below repeats on a loop
+print(current_key)
 while True:
 
      #CHANGE THE PATTERN IF IDLE
     if idle_count==32:
         pattern_number=random.randint(1, 9)
-        print(pattern_number)
         beatset=pattern_bank[pattern_number]
         #print(beatset)
         idle_count=0
-        print(beatset)
 
 
 
@@ -239,7 +244,7 @@ while True:
     # next beat!
     current_step = (current_step + 1) % 8
     if sum(current_step_row)==0:
-        if cycle_count==3:
+        if cycle_count==2:
             cycle_count=0
         else:
             if idle_count<clear_after_idle_threshold+1:
@@ -250,12 +255,11 @@ while True:
                     if case==0:
                         row_sequence[y]=list(reversed(row_sequence[y]))
                     if case==1:
-                        if max(row_sequence[y])< y*8+8:
+                        if max(row_sequence[y])<= len(current_key)-(abs(y-4))*4:
                             row_sequence[y]=[x+1 for x in row_sequence[y]]
                     if case==2:
-                        if min(row_sequence[y])> y*8-3:
+                        if min(row_sequence[y])> 0+y*4:
                             row_sequence[y]=[x-1 for x in row_sequence[y]]
-
             else:
                 cycle_count=0
 
@@ -266,11 +270,16 @@ while True:
                 color = (200, 0, 255)
                 trellis.pixels[(y, current_step_row[y])] = color
                 #new_note=current_key[y*8+current_step_row[y]]
+                #new_note=current_key[current_step_row[y]]
                 new_note=current_key[row_sequence[y][current_step_row[y]]]
                 active_notes.append(new_note)
                 if midi_mode:
                     midi.send(NoteOn(new_note, 100))
-                    midiuart.write(bytes([0x90, new_note, 100]))
+                    midiuart.write(bytes([0x90, new_note, 100])) # note on
+                    if new_note>high_note_limit:
+                        print(f"{new_note} greater than {high_note_limit}")
+                    elif new_note<low_note_limit:
+                        print(f"{new_note} less than {low_note_limit}")
                 else:
                     keyboard_layout.write(key_chars[(y*8+current_step_row[y])])
                     print(key_chars[(y*8+current_step_row[y])])
