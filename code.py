@@ -147,10 +147,10 @@ beatset=pattern_bank[random.randint(1, 9)]
 print(current_key)
 while True:
 
-    
+
     #CHANGE THE PATTERN IF IDLE
     if idle_count==32:
-            
+
         with open('sequences.json') as fp:
             pattern_bank = json.load(fp)
         pattern_number=random.randint(1, 9)
