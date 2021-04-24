@@ -1,5 +1,3 @@
-#https://learn.adafruit.com/classic-midi-synth-control-with-trellis-m4/code-with-circuitpython
-
 import time
 import random
 import board
@@ -13,13 +11,7 @@ from adafruit_hid.keyboard import Keyboard
 from adafruit_hid.keyboard_layout_us import KeyboardLayoutUS
 from adafruit_hid.keycode import Keycode
 from random import randrange
-
-
-
-
-
-
-
+import json
 
 ##MIDI####################################MIDI#######################################MIDI##
 midiuart = busio.UART(board.SDA, board.SCL, baudrate=31250)
@@ -71,15 +63,8 @@ def notes_in_key(tonic=24, scale_type=scale_dict['major'], octave_low=1, octave_
     return note_list
 current_key=notes_in_key(tonic_dict[selected_tonic], scale_dict[selected_scale_type], octave_low, octave_high)
 ##MIDI####################################MIDI#######################################MIDI##
-
-
-
-
-# This is the setup to have a "settings" file that could set parameters on startup, currently unused -DF
-#with open ("settings.txt", "r") as myfile:
-#    data=myfile.readlines()
-#print(data[0])
-#print(data[1])
+with open('sequences.json') as fp:
+    pattern_bank = json.load(fp)
 
 # The keyboard object!
 time.sleep(1)  # Sleep for a bit to avoid a race condition on some systems
@@ -100,7 +85,7 @@ INACTIVE_COLOR = (0, 0, 120)
 
 # Our keypad + neopixel driver
 trellis = adafruit_trellism4.TrellisM4Express(rotation=90)
-trellis.pixels.brightness = (0.02)
+trellis.pixels.brightness = (.02)
 
 # Clear all pixels
 trellis.pixels.fill(0)
@@ -144,22 +129,11 @@ active_notes=[]
 #    #row_sequence[y]=[randrange(y*8, y*8+7) for x in range(8)]
 #    row_sequence[y]=([y*3+x for x in range(y*2, y*2+4)]*4)[:9]
 #    print(row_sequence)
-    
+
 for y in range(4):
     notes_per_row=len(current_key)//4
     row_sequence[y]=[randrange(notes_per_row)+y*notes_per_row for x in range(8)]
 print(row_sequence)
-
-pattern_bank={0:[[0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0]],
-1:[[1, 0, 1, 0, 0, 1, 0, 1], [0, 1, 0, 1, 1, 0, 1, 0], [0, 0, 1, 0, 0, 1, 0, 0], [0, 0, 0, 1, 1, 0, 0, 0]],
-2:[[1, 0, 1, 0, 1, 0, 1, 0], [0, 1, 0, 1, 0, 1, 0, 1], [0, 1, 0, 1, 0, 1, 0, 1], [1, 0, 1, 0, 1, 0, 1, 0]],
-3:[[1, 0, 1, 0, 1, 0, 1, 0], [0, 1, 0, 1, 0, 1, 0, 1], [1, 0, 1, 0, 1, 0, 1, 0], [0, 1, 0, 1, 0, 1, 0, 1]],
-4:[[1, 1, 0, 0, 0, 0, 1, 1], [0, 0, 1, 1, 1, 1, 0, 0], [0, 0, 1, 1, 1, 1, 0, 0], [1, 1, 0, 0, 0, 0, 1, 1]],
-5:[[1, 0, 1, 0, 0, 1, 0, 1], [0, 0, 0, 1, 1, 0, 0, 0], [0, 0, 0, 1, 1, 0, 0, 0], [1, 0, 1, 0, 0, 1, 0, 1]],
-6:[[1, 0, 1, 0, 1, 0, 1, 0], [0, 1, 0, 1, 0, 1, 0, 1], [0, 1, 0, 1, 0, 1, 0, 1], [1, 0, 1, 0, 1, 0, 1, 0]],
-7:[[1, 0, 0, 1, 1, 0, 0, 1], [0, 1, 1, 0, 0, 1, 1, 0], [0, 1, 1, 0, 0, 1, 1, 0], [1, 0, 0, 1, 1, 0, 0, 1]],
-8:[[1, 1, 0, 0, 0, 0, 1, 1], [0, 0, 1, 1, 1, 1, 0, 0], [0, 0, 1, 1, 1, 1, 0, 0], [1, 1, 0, 0, 0, 0, 1, 1]],
-9:[[0, 0, 0, 1, 1, 0, 0, 0], [0, 0, 1, 0, 0, 1, 0, 0], [0, 1, 0, 1, 1, 0, 1, 0], [1, 0, 1, 0, 0, 1, 0, 1]]}
 
 for note in range(10,110):
     midi.send(NoteOff(note, 0x00))
@@ -173,12 +147,27 @@ beatset=pattern_bank[random.randint(1, 9)]
 print(current_key)
 while True:
 
-     #CHANGE THE PATTERN IF IDLE
+    
+    #CHANGE THE PATTERN IF IDLE
     if idle_count==32:
+            
+        with open('sequences.json') as fp:
+            pattern_bank = json.load(fp)
         pattern_number=random.randint(1, 9)
         beatset=pattern_bank[pattern_number]
+        #periodically change keys here
+        #selected_tonic='g'
+        current_key=notes_in_key(tonic_dict[selected_tonic], scale_dict[selected_scale_type], octave_low, octave_high)
+
         #print(beatset)
         idle_count=0
+    match_results=[]
+    for pattern in pattern_bank:
+        if beatset==pattern_bank[pattern]:
+            match_results.append(pattern)
+            #play midi note for pattern recognition here
+            #pass
+    print(f"Matched: {match_results}")
 
 
 
@@ -269,8 +258,6 @@ while True:
             if previous_step_row[y]!=current_step_row[y]:
                 color = (200, 0, 255)
                 trellis.pixels[(y, current_step_row[y])] = color
-                #new_note=current_key[y*8+current_step_row[y]]
-                #new_note=current_key[current_step_row[y]]
                 new_note=current_key[row_sequence[y][current_step_row[y]]]
                 active_notes.append(new_note)
                 if midi_mode:
