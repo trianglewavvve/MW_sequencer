@@ -5,7 +5,6 @@ import busio
 import audioio
 import adafruit_fancyled.adafruit_fancyled as fancy
 import adafruit_trellism4
-#import adafruit_adxl34x
 import usb_hid
 from adafruit_hid.keyboard import Keyboard
 from adafruit_hid.keyboard_layout_us import KeyboardLayoutUS
@@ -47,8 +46,10 @@ midi = adafruit_midi.MIDI(
 high_note_limit=95
 low_note_limit=48
 row_sequence=[[], [], [], []]
-tonic_dict = dict(zip(['a', 'b', 'c', 'd', 'e', 'f', 'g'],[0, 2, 3, 5, 7, 8, 10, 12]))
-scale_dict={'major':[0, 2, 4, 5, 7, 9, 11], 'major_5th':[0, 4, 7],'major_pent':[0, 2, 4,  7, 9],'minor':[0, 2, 3, 5, 7, 8, 10]}
+#tonic_dict = dict(zip(['a', 'b', 'c', 'd', 'e', 'f', 'g'],[0, 2, 3, 5, 7, 8, 10, 12]))
+tonic_dict = dict(zip(['a', 'a#','b', 'c', 'c#', 'd', 'd#', 'e', 'f', 'f#', 'g', 'g#'],[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]))
+circle_of_fifths=['c', 'g', 'd', 'a', 'e', 'b', 'f♯', 'c♯', 'g#', 'd#', 'a#', 'f']
+scale_dict={'major':[0, 2, 4, 5, 7, 9, 11], 'major_pent':[0, 2, 4,  7, 9],'minor':[0, 2, 3, 5, 7, 8, 10], 'minor_pent':[0, 3, 5,  7, 10]}
 selected_scale_type='major_pent'
 selected_tonic='c'
 octave_low=2
@@ -160,6 +161,8 @@ while True:
         current_key=notes_in_key(tonic_dict[selected_tonic], scale_dict[selected_scale_type], octave_low, octave_high)
 
         #print(beatset)
+        #print(current_key[0])
+
         idle_count=0
     match_results=[]
     for pattern in pattern_bank:
