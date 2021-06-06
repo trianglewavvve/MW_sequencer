@@ -68,6 +68,8 @@ current_key=notes_in_key(tonic_dict[selected_tonic], scale_dict[selected_scale_t
 ##MIDI####################################MIDI#######################################MIDI##
 with open('sequences.json') as fp:
     pattern_bank = json.load(fp)
+with open('secret_sequences.json') as fp:
+    secret_pattern_bank = json.load(fp)
 
 # The keyboard object!
 time.sleep(1)  # Sleep for a bit to avoid a race condition on some systems
@@ -154,8 +156,8 @@ while True:
     #CHANGE THE PATTERN IF IDLE
     if idle_count==32:
 
-        with open('sequences.json') as fp:
-            pattern_bank = json.load(fp)
+        #with open('sequences.json') as fp:
+        #    pattern_bank = json.load(fp)
         pattern_number=random.randint(1, 9)
         beatset=[[i for i in row] for row in pattern_bank[pattern_number]]   
         #periodically change keys here
@@ -164,24 +166,21 @@ while True:
 
         idle_count=0
     #match_results=[]
-    for pattern in pattern_bank:
-        if beatset==pattern_bank[pattern]:
-            #match_results.append(pattern)
-            matched_pattern=pattern
-            #play midi note for pattern recognition here
-            if matched==False:
+    matched_pattern=False
+    for pattern in secret_pattern_bank:
+
+        if not matched_pattern:
+            if beatset==secret_pattern_bank[pattern]:
+                #match_results.append(pattern)
+                matched_pattern=pattern
+                #play midi note for pattern recognition here
                 print(f"Matched: {matched_pattern}")
-                matched=True
                 
-                #delete
-                temp_active_cells=0
-                for row in pattern_bank[pattern]:
-                    temp_active_cells+=sum(row)
-                print(f"{pattern}: {temp_active_cells}")
-        else:
-            if matched==True:
-                print('')
-                matched=False
+
+
+    if not matched_pattern:
+        print('No Match')
+        matched=False
 
 
 
@@ -298,7 +297,7 @@ while True:
             trellis.pixels[(y, current_step_row[y])] = color
 
 ##################################################################
-##### Modified above to create clock division ####
+##### Modified above to create clock division ####0
 ##################################################################
 
     # handle button presses while we're waiting for the next tempo beat
@@ -328,4 +327,4 @@ while True:
             trellis.pixels[down] = color
         current_press = pressed
 
-        time.sleep(0.01)  # a little delay here helps avoid debounce annoyances
+        time.sleep(0.02)  # a little delay here helps avoid debounce annoyances
