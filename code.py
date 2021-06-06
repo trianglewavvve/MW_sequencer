@@ -43,6 +43,8 @@ midi = adafruit_midi.MIDI(
     in_channel=(1, 2, 3),
     out_channel=0,
 )
+
+
 high_note_limit=95
 low_note_limit=48
 row_sequence=[[], [], [], []]
@@ -95,7 +97,6 @@ trellis.pixels.fill(0)
 current_step = 7 # we actually start on the last step since we increment first
 # the state of the sequencer
 beatset = [[0] * 8, [0] * 8, [0] * 8, [0] * 8]
-prior_beatset=beatset
 # currently pressed buttons
 current_press = set()
 key_chars='0123456789abcdefghijklmnopqrstuvwxyz'
@@ -107,11 +108,12 @@ dividend_list=[[1, 1, 1, 1], [1, 1, 1, 2], [1, 1, 2, 4], [1, 2, 4, 8]]
 idle_count=0
 step_list=[]
 active_cells=[]
-max_active_notes_per_row=4
+max_active_notes_per_row=10
 clear_after_idle_threshold=128000
 midi_mode=True
 division_enabled=False
 note_list=[]
+matched=False
 #for octave in range(3, 6):
 #  for note in ['C', 'E', 'F', 'G']:
 #    note_list.append(f'\\samples\\{note}{octave}.wav')
@@ -141,7 +143,7 @@ for note in range(10,110):
     midiuart.write(bytes([0x90, note, 0]))  # note off
 
 
-beatset=pattern_bank[random.randint(1, 9)]
+beatset=[[i for i in row] for row in pattern_bank[random.randint(1, 9)]]
 
 #'Everything above executes a single time on startup'
 #Everything below repeats on a loop
@@ -155,22 +157,33 @@ while True:
         with open('sequences.json') as fp:
             pattern_bank = json.load(fp)
         pattern_number=random.randint(1, 9)
-        beatset=pattern_bank[pattern_number]
+        beatset=[[i for i in row] for row in pattern_bank[pattern_number]]   
         #periodically change keys here
         #selected_tonic='g'
         current_key=notes_in_key(tonic_dict[selected_tonic], scale_dict[selected_scale_type], octave_low, octave_high)
 
-        #print(beatset)
-        #print(current_key[0])
-
         idle_count=0
-    match_results=[]
+    #match_results=[]
     for pattern in pattern_bank:
         if beatset==pattern_bank[pattern]:
-            match_results.append(pattern)
+            #match_results.append(pattern)
+            matched_pattern=pattern
             #play midi note for pattern recognition here
-            #pass
-    print(f"Matched: {match_results}")
+            if matched==False:
+                print(f"Matched: {matched_pattern}")
+                matched=True
+                
+                #delete
+                temp_active_cells=0
+                for row in pattern_bank[pattern]:
+                    temp_active_cells+=sum(row)
+                print(f"{pattern}: {temp_active_cells}")
+        else:
+            if matched==True:
+                print('')
+                matched=False
+
+
 
 
 
@@ -314,4 +327,5 @@ while True:
                 color = INACTIVE_COLOR
             trellis.pixels[down] = color
         current_press = pressed
+
         time.sleep(0.01)  # a little delay here helps avoid debounce annoyances
