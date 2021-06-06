@@ -116,6 +116,7 @@ midi_mode=True
 division_enabled=False
 note_list=[]
 matched=False
+match_note_number=47
 #for octave in range(3, 6):
 #  for note in ['C', 'E', 'F', 'G']:
 #    note_list.append(f'\\samples\\{note}{octave}.wav')
@@ -173,13 +174,18 @@ while True:
             if beatset==secret_pattern_bank[pattern]:
                 #match_results.append(pattern)
                 matched_pattern=pattern
+                match_note_number=48-pattern
                 #play midi note for pattern recognition here
+                midi.send(NoteOn(match_note_number, 100))
+                midiuart.write(bytes([0x90, match_note_number, 100])) # note on
                 print(f"Matched: {matched_pattern}")
                 
 
 
     if not matched_pattern:
         print('No Match')
+        midi.send(NoteOff(match_note_number, 0x00))
+        midiuart.write(bytes([0x90, match_note_number, 0]))  # note off
         matched=False
 
 
