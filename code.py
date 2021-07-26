@@ -44,7 +44,7 @@ midi = adafruit_midi.MIDI(
     out_channel=0,
 )
 
-
+number_of_rows=4
 high_note_limit=95
 low_note_limit=48
 row_sequence=[[], [], [], []]
@@ -121,7 +121,7 @@ match_note_number=47
 #  for note in ['C', 'E', 'F', 'G']:
 #    note_list.append(f'\\samples\\{note}{octave}.wav')
 
-for y in range(4):
+for y in range(number_of_rows):
     for x in range(8):
         step_list.append((y, x))
 for step in step_list:
@@ -136,7 +136,7 @@ active_notes=[]
 #    row_sequence[y]=([y*3+x for x in range(y*2, y*2+4)]*4)[:9]
 #    print(row_sequence)
 
-for y in range(4):
+for y in range(number_of_rows):
     notes_per_row=len(current_key)//4
     row_sequence[y]=[randrange(notes_per_row)+y*notes_per_row for x in range(8)]
 print(row_sequence)
@@ -178,7 +178,7 @@ while True:
                 #play midi note for pattern recognition here
                 midi.send(NoteOn(match_note_number, 100))
                 midiuart.write(bytes([0x90, match_note_number, 100])) # note on
-                print(f"Matched: {matched_pattern}")
+                #print(f"Matched: {matched_pattern}")
                 
 
 
@@ -225,7 +225,7 @@ while True:
 ##### this is where I modified the code in order to accomplish clock division -David F.####
 ###########################################################################################
 
-    for y in range(4):
+    for y in range(number_of_rows):
         if division_enabled:
             dividend = dividend_list[cycle_count][y]
         else:
@@ -260,7 +260,7 @@ while True:
             if idle_count<clear_after_idle_threshold+1:
                 cycle_count+=1
 
-                for y in range(4):
+                for y in range(number_of_rows):
                     case=randrange(0, 4)
                     if case==0:
                         row_sequence[y]=list(reversed(row_sequence[y]))
@@ -274,7 +274,7 @@ while True:
                 cycle_count=0
 
     # draw the vertical ticker bar, with selected voices highlighted
-    for y in range(4):
+    for y in range(number_of_rows):
         if beatset[y][current_step_row[y]]:
             if previous_step_row[y]!=current_step_row[y]:
                 color = (200, 0, 255)
