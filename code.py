@@ -147,15 +147,16 @@ for note in range(10,110):
 
 
 beatset=[[i for i in row] for row in pattern_bank[random.randint(1, 9)]]
-
 #'Everything above executes a single time on startup'
 #Everything below repeats on a loop
 print(current_key)
 while True:
 
+    
+    #print(beatset) 
 
     #CHANGE THE PATTERN IF IDLE
-    if idle_count==32:
+    if idle_count==128:
 
         #with open('sequences.json') as fp:
         #    pattern_bank = json.load(fp)
@@ -178,12 +179,12 @@ while True:
                 #play midi note for pattern recognition here
                 midi.send(NoteOn(match_note_number, 100))
                 midiuart.write(bytes([0x90, match_note_number, 100])) # note on
-                #print(f"Matched: {matched_pattern}")
+                print(f"Matched: {matched_pattern}, Note: {match_note_number}")
                 
 
 
     if not matched_pattern:
-        print('No Match')
+        #print('No Match')
         midi.send(NoteOff(match_note_number, 0x00))
         midiuart.write(bytes([0x90, match_note_number, 0]))  # note off
         matched=False
