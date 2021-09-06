@@ -1,4 +1,4 @@
-#import needed libraries
+# Import required libraries
 import time
 import random
 import board
@@ -21,7 +21,18 @@ from adafruit_midi.stop import Stop
 from adafruit_midi.system_exclusive import SystemExclusive
 from adafruit_midi.midi_message import MIDIUnknownEvent
 
-#MIDI Configuration
+# Basic configuration
+division_enabled=False
+idle_count_threshold=128
+high_note_limit=95
+low_note_limit=48
+octave_low=2
+octave_high=6
+selected_scale_type='major_pent'
+selected_tonic='c'
+tempo = 240  # Starting BPM
+
+# MIDI Configuration
 midi = adafruit_midi.MIDI(
     midi_in=usb_midi.ports[0],
     midi_out=usb_midi.ports[1],
@@ -29,27 +40,20 @@ midi = adafruit_midi.MIDI(
     out_channel=0,
 )
 
-#Load pattern bank for default patterns 
+# Load pattern bank for default patterns 
 with open('sequences.json') as fp:
     pattern_bank = json.load(fp)
-#Load "secret" pattern bank 
+# Load "secret" pattern bank 
 with open('secret_sequences.json') as fp:
     secret_pattern_bank = json.load(fp)
 
 # Define musical structures/limits and make scale selction
 number_of_rows=4
-high_note_limit=95
-low_note_limit=48
 row_sequence=[[], [], [], []]
 tonic_dict = dict(zip(['a', 'a#','b', 'c', 'c#', 'd', 'd#', 'e', 'f', 'f#', 'g', 'g#'],[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]))
 scale_dict={'major':[0, 2, 4, 5, 7, 9, 11], 'major_pent':[0, 2, 4,  7, 9],'minor':[0, 2, 3, 5, 7, 8, 10], 'minor_pent':[0, 3, 5,  7, 10]}
-selected_scale_type='major_pent'
-selected_tonic='c'
-octave_low=2
-octave_high=6
-tempo = 240  # Starting BPM
 
-#Function for generating all the notes in a key
+# Function for generating all the notes in a key
 def notes_in_key(tonic=24, scale_type=scale_dict['major'], octave_low=1, octave_high=4, note_offset=21):
     note_list=[]
     for octave in range(octave_low, octave_high):
@@ -58,25 +62,23 @@ def notes_in_key(tonic=24, scale_type=scale_dict['major'], octave_low=1, octave_
     return note_list
 current_key=notes_in_key(tonic_dict[selected_tonic], scale_dict[selected_scale_type], octave_low, octave_high)
 
-# Define colors for different sequencer cell states
+# hardware definition
+trellis = adafruit_trellism4.TrellisM4Express(rotation=90)
+trellis.pixels.brightness = (.02)
+
+# clear all pixels
+trellis.pixels.fill(0)
+# set colors for different sequencer cell states
 # four colors for the 4 voices, using 0 or 255 only will reduce buzz
 DRUM_COLOR = ((90, 0, 30),
               (90, 0, 30),
               (90, 0, 30),
               (90, 0, 30))
-
-# the color for the sweeping ticker bar
+# set the color for the sweeping ticker bar
 TICKER_COLOR = (60, 0, 255)
 INACTIVE_COLOR = (0, 0, 120)
 
-# Our keypad + neopixel driver
-trellis = adafruit_trellism4.TrellisM4Express(rotation=90)
-trellis.pixels.brightness = (.02)
-
-# Clear all pixels
-trellis.pixels.fill(0)
-
-# Our global state
+# initialize variables
 current_step = 7 # we actually start on the last step since we increment first
 # the state of the sequencer
 beatset = [[0] * 8, [0] * 8, [0] * 8, [0] * 8]
@@ -88,10 +90,7 @@ previous_step_row=[0, 0, 0, 0]
 cycle_count=0
 dividend_list=[[1, 1, 1, 1], [1, 1, 1, 2], [1, 1, 2, 4], [1, 2, 4, 8]]
 idle_count=0
-idle_count_threshold=128
 active_cells=[]
-division_enabled=False
-#note_list=[]
 matched=False
 match_note_number=47
 active_notes=[]
@@ -105,30 +104,28 @@ for y in range(number_of_rows):
 for step in step_list:
     trellis.pixels[step] = INACTIVE_COLOR
 
-
-#### generate initial sequence #####
-
+# Generate initial sequence
 for y in range(number_of_rows):
     notes_per_row=len(current_key)//4
     row_sequence[y]=[randrange(notes_per_row)+y*notes_per_row for x in range(8)]
 
-# Initialize all notes to off state
+# Send midi msgs to nitialize all notes to off state
 for note in range(10,110):
     midi.send(NoteOff(note, 0x00))
 
-
 beatset=[[i for i in row] for row in pattern_bank[random.randint(1, 9)]]
-#Everything above executes a single time on startup     
-#Everything below repeats on a loop
+# Everything above executes a single time on startup     
+# Everything below repeats on a loop
 while True:
 
-    #CHANGE THE PATTERN IF IDLE
+    # CHANGE THE PATTERN IF IDLE
     if idle_count==idle_count_threshold:
         pattern_number=random.randint(1, 9)
         beatset=[[i for i in row] for row in pattern_bank[pattern_number]]
         current_key=notes_in_key(tonic_dict[selected_tonic], scale_dict[selected_scale_type], octave_low, octave_high)
         idle_count=0
     
+    # Monitor for patterns that match the "secret" patterns from json file
     matched_pattern=False
     for pattern in secret_pattern_bank:
         if not matched_pattern:
@@ -138,8 +135,6 @@ while True:
                 #play midi note for pattern recognition here
                 midi.send(NoteOn(match_note_number, 100))
                 print(f"Matched: {matched_pattern}, Note: {match_note_number}")
-
-
 
     if not matched_pattern:
         #print('No Match')
@@ -151,7 +146,6 @@ while True:
         for note in active_notes:
             midi.send(NoteOff(note, 0x00))
         active_notes=[]
-
 
     idle_count+=1
     stamp = time.monotonic()
@@ -202,7 +196,6 @@ while True:
             if case==2:
                 if min(row_sequence[y])> 0+y*4:
                     row_sequence[y]=[x-1 for x in row_sequence[y]]
-
 
     # draw the vertical ticker bar, with selected voices highlighted and play midi note
     for y in range(number_of_rows):
