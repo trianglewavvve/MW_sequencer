@@ -1,29 +1,13 @@
-
+#import needed libraries
 import time
 import random
 import board
-#$import busio
-#import audioio
 import adafruit_fancyled.adafruit_fancyled as fancy
 import adafruit_trellism4
-#import usb_hid
-#from adafruit_hid.keyboard import Keyboard
-#from adafruit_hid.keyboard_layout_us import KeyboardLayoutUS
-#from adafruit_hid.keycode import Keycode
 from random import randrange
 import json
-
-##MIDI####################################MIDI#######################################MIDI##
-#midiuart = busio.UART(board.SDA, board.SCL, baudrate=31250)
 import usb_midi
 import adafruit_midi
-import time
-
-# TimingClock is worth importing first if present as it
-# will make parsing more efficient for this high frequency event
-# Only importing what is used will save a little bit of memory
-
-# pylint: disable=unused-import
 from adafruit_midi.timing_clock import TimingClock
 from adafruit_midi.channel_pressure import ChannelPressure
 from adafruit_midi.control_change import ControlChange
@@ -35,9 +19,9 @@ from adafruit_midi.program_change import ProgramChange
 from adafruit_midi.start import Start
 from adafruit_midi.stop import Stop
 from adafruit_midi.system_exclusive import SystemExclusive
-
 from adafruit_midi.midi_message import MIDIUnknownEvent
 
+#MIDI Configuration
 midi = adafruit_midi.MIDI(
     midi_in=usb_midi.ports[0],
     midi_out=usb_midi.ports[1],
@@ -45,6 +29,14 @@ midi = adafruit_midi.MIDI(
     out_channel=0,
 )
 
+#Load pattern bank for default patterns 
+with open('sequences.json') as fp:
+    pattern_bank = json.load(fp)
+#Load "secret" pattern bank 
+with open('secret_sequences.json') as fp:
+    secret_pattern_bank = json.load(fp)
+
+# Define musical structures/limits and make scale selction
 number_of_rows=4
 high_note_limit=95
 low_note_limit=48
@@ -55,7 +47,9 @@ selected_scale_type='major_pent'
 selected_tonic='c'
 octave_low=2
 octave_high=6
+tempo = 240  # Starting BPM
 
+#Function for generating all the notes in a key
 def notes_in_key(tonic=24, scale_type=scale_dict['major'], octave_low=1, octave_high=4, note_offset=21):
     note_list=[]
     for octave in range(octave_low, octave_high):
@@ -64,15 +58,7 @@ def notes_in_key(tonic=24, scale_type=scale_dict['major'], octave_low=1, octave_
     return note_list
 current_key=notes_in_key(tonic_dict[selected_tonic], scale_dict[selected_scale_type], octave_low, octave_high)
 
-##MIDI####################################MIDI#######################################MIDI##
-
-with open('sequences.json') as fp:
-    pattern_bank = json.load(fp)
-with open('secret_sequences.json') as fp:
-    secret_pattern_bank = json.load(fp)
-
-time.sleep(1)  # Sleep for a bit to avoid a race condition on some systems
-tempo = 240  # Starting BPM
+# Define colors for different sequencer cell states
 # four colors for the 4 voices, using 0 or 255 only will reduce buzz
 DRUM_COLOR = ((90, 0, 30),
               (90, 0, 30),
@@ -102,19 +88,20 @@ previous_step_row=[0, 0, 0, 0]
 cycle_count=0
 dividend_list=[[1, 1, 1, 1], [1, 1, 1, 2], [1, 1, 2, 4], [1, 2, 4, 8]]
 idle_count=0
-step_list=[]
+idle_count_threshold=128
 active_cells=[]
-max_active_notes_per_row=10
-clear_after_idle_threshold=128000
 division_enabled=False
-note_list=[]
+#note_list=[]
 matched=False
 match_note_number=47
 active_notes=[]
 
+#Create a list of all x, y positions (cells) in the sequencer
+step_list=[]
 for y in range(number_of_rows):
     for x in range(8):
         step_list.append((y, x))
+#Set all cells to inactive color
 for step in step_list:
     trellis.pixels[step] = INACTIVE_COLOR
 
@@ -125,7 +112,7 @@ for y in range(number_of_rows):
     notes_per_row=len(current_key)//4
     row_sequence[y]=[randrange(notes_per_row)+y*notes_per_row for x in range(8)]
 
-# Turn off all notes
+# Initialize all notes to off state
 for note in range(10,110):
     midi.send(NoteOff(note, 0x00))
 
@@ -136,7 +123,7 @@ beatset=[[i for i in row] for row in pattern_bank[random.randint(1, 9)]]
 while True:
 
     #CHANGE THE PATTERN IF IDLE
-    if idle_count==128:
+    if idle_count==idle_count_threshold:
         pattern_number=random.randint(1, 9)
         beatset=[[i for i in row] for row in pattern_bank[pattern_number]]
         current_key=notes_in_key(tonic_dict[selected_tonic], scale_dict[selected_scale_type], octave_low, octave_high)
@@ -159,7 +146,7 @@ while True:
         midi.send(NoteOff(match_note_number, 0x00))
         matched=False
 
-    # Play all notes that are active notes for this step
+    # Turn off all previously active notes
     if len(active_notes)>0:
         for note in active_notes:
             midi.send(NoteOff(note, 0x00))
@@ -169,27 +156,8 @@ while True:
     idle_count+=1
     stamp = time.monotonic()
     # redraw the last step to remove the ticker bar (e.g. 'normal' view)
-
-    if idle_count>clear_after_idle_threshold:
-        for row in range(len(beatset)):
-
-            for cell in range(0, len(beatset[row])):
-                if beatset[row][cell]==1:
-                    active_cells.append(cell)
-            if len(active_cells)>0:
-                try:
-                    deactivated_cell=(row, active_cells[random.randint(0, len(active_cells)-1)])
-                    beatset[deactivated_cell[0]][deactivated_cell[1]]=0
-                    trellis.pixels[deactivated_cell]=INACTIVE_COLOR
-                except:
-                    print('FAILED')
-
-
-
-###########################################################################################
-##### this is where I modified the code in order to accomplish clock division -David F.####
-###########################################################################################
-
+    
+    #Advance the sequencer step
     for y in range(number_of_rows):
         if division_enabled:
             dividend = dividend_list[cycle_count][y]
@@ -203,6 +171,7 @@ while True:
                     current_step_row[y]=0
         color = 0
 
+        #Change color of active cells
         if beatset[y][current_step_row[y]]:
             color = DRUM_COLOR[y]
             trellis.pixels[(y, current_step_row[y])] = color
@@ -217,27 +186,25 @@ while True:
 
     # next beat!
     current_step = (current_step + 1) % 8
+    
+    # When cycling back to the first note in the sequence probabilistically mutate the notes in each row 
     if sum(current_step_row)==0:
-        if cycle_count==2:
+        cycle_count+=1
+        if cycle_count>=4:
             cycle_count=0
-        else:
-            if idle_count<clear_after_idle_threshold+1:
-                cycle_count+=1
+        for y in range(number_of_rows):
+            case=randrange(0, 4)
+            if case==0:
+                row_sequence[y]=list(reversed(row_sequence[y]))
+            if case==1:
+                if max(row_sequence[y])<= len(current_key)-(abs(y-4))*4:
+                    row_sequence[y]=[x+1 for x in row_sequence[y]]
+            if case==2:
+                if min(row_sequence[y])> 0+y*4:
+                    row_sequence[y]=[x-1 for x in row_sequence[y]]
 
-                for y in range(number_of_rows):
-                    case=randrange(0, 4)
-                    if case==0:
-                        row_sequence[y]=list(reversed(row_sequence[y]))
-                    if case==1:
-                        if max(row_sequence[y])<= len(current_key)-(abs(y-4))*4:
-                            row_sequence[y]=[x+1 for x in row_sequence[y]]
-                    if case==2:
-                        if min(row_sequence[y])> 0+y*4:
-                            row_sequence[y]=[x-1 for x in row_sequence[y]]
-            else:
-                cycle_count=0
 
-    # draw the vertical ticker bar, with selected voices highlighted
+    # draw the vertical ticker bar, with selected voices highlighted and play midi note
     for y in range(number_of_rows):
         if beatset[y][current_step_row[y]]:
             if previous_step_row[y]!=current_step_row[y]:
@@ -250,18 +217,12 @@ while True:
                     print(f"{new_note} greater than {high_note_limit}")
                 elif new_note<low_note_limit:
                     print(f"{new_note} less than {low_note_limit}")
-
             else:
                 midi.send(NoteOff(new_note, 0))
-                #doesn't work
                 pass
         else:
             color = TICKER_COLOR     # no voice on
             trellis.pixels[(y, current_step_row[y])] = color
-
-##################################################################
-##### Modified above to create clock division ####0
-##################################################################
 
     # handle button presses while we're waiting for the next tempo beat
     while time.monotonic() - stamp < 60/tempo:
@@ -280,5 +241,4 @@ while True:
                 color = INACTIVE_COLOR
             trellis.pixels[down] = color
         current_press = pressed
-
         time.sleep(0.02)  # a little delay here helps avoid debounce annoyances
