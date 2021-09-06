@@ -23,7 +23,7 @@ from adafruit_midi.midi_message import MIDIUnknownEvent
 
 # Basic configuration
 division_enabled=False
-idle_count_threshold=128
+idle_count_threshold=128 # number of sequncer steps before mutating pattern
 high_note_limit=95
 low_note_limit=48
 octave_low=2
@@ -47,7 +47,7 @@ with open('sequences.json') as fp:
 with open('secret_sequences.json') as fp:
     secret_pattern_bank = json.load(fp)
 
-# Define musical structures/limits and make scale selction
+# Define musical structures/limits and make scale selection 
 number_of_rows=4
 row_sequence=[[], [], [], []]
 tonic_dict = dict(zip(['a', 'a#','b', 'c', 'c#', 'd', 'd#', 'e', 'f', 'f#', 'g', 'g#'],[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]))
@@ -62,10 +62,9 @@ def notes_in_key(tonic=24, scale_type=scale_dict['major'], octave_low=1, octave_
     return note_list
 current_key=notes_in_key(tonic_dict[selected_tonic], scale_dict[selected_scale_type], octave_low, octave_high)
 
-# hardware definition
+############ HARDWARE SETUP ############
 trellis = adafruit_trellism4.TrellisM4Express(rotation=90)
 trellis.pixels.brightness = (.02)
-
 # clear all pixels
 trellis.pixels.fill(0)
 # set colors for different sequencer cell states
@@ -109,7 +108,7 @@ for y in range(number_of_rows):
     notes_per_row=len(current_key)//4
     row_sequence[y]=[randrange(notes_per_row)+y*notes_per_row for x in range(8)]
 
-# Send midi msgs to nitialize all notes to off state
+# Send midi msgs to initialize all notes to off state
 for note in range(10,110):
     midi.send(NoteOff(note, 0x00))
 
