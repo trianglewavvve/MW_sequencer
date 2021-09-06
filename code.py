@@ -13,7 +13,7 @@ from random import randrange
 import json
 
 ##MIDI####################################MIDI#######################################MIDI##
-midiuart = busio.UART(board.SDA, board.SCL, baudrate=31250)
+#midiuart = busio.UART(board.SDA, board.SCL, baudrate=31250)
 import usb_midi
 import adafruit_midi
 import time
@@ -143,7 +143,6 @@ print(row_sequence)
 
 for note in range(10,110):
     midi.send(NoteOff(note, 0x00))
-    midiuart.write(bytes([0x90, note, 0]))  # note off
 
 
 beatset=[[i for i in row] for row in pattern_bank[random.randint(1, 9)]]
@@ -152,8 +151,8 @@ beatset=[[i for i in row] for row in pattern_bank[random.randint(1, 9)]]
 print(current_key)
 while True:
 
-    
-    #print(beatset) 
+
+    #print(beatset)
 
     #CHANGE THE PATTERN IF IDLE
     if idle_count==128:
@@ -161,7 +160,7 @@ while True:
         #with open('sequences.json') as fp:
         #    pattern_bank = json.load(fp)
         pattern_number=random.randint(1, 9)
-        beatset=[[i for i in row] for row in pattern_bank[pattern_number]]   
+        beatset=[[i for i in row] for row in pattern_bank[pattern_number]]
         #periodically change keys here
         #selected_tonic='g'
         current_key=notes_in_key(tonic_dict[selected_tonic], scale_dict[selected_scale_type], octave_low, octave_high)
@@ -178,15 +177,13 @@ while True:
                 match_note_number=48-pattern
                 #play midi note for pattern recognition here
                 midi.send(NoteOn(match_note_number, 100))
-                midiuart.write(bytes([0x90, match_note_number, 100])) # note on
                 print(f"Matched: {matched_pattern}, Note: {match_note_number}")
-                
+
 
 
     if not matched_pattern:
         #print('No Match')
         midi.send(NoteOff(match_note_number, 0x00))
-        midiuart.write(bytes([0x90, match_note_number, 0]))  # note off
         matched=False
 
 
@@ -196,7 +193,6 @@ while True:
     if len(active_notes)>0:
         for note in active_notes:
             midi.send(NoteOff(note, 0x00))
-            midiuart.write(bytes([0x90, note, 0]))  # note off
 
         active_notes=[]
 
@@ -284,7 +280,6 @@ while True:
                 active_notes.append(new_note)
                 if midi_mode:
                     midi.send(NoteOn(new_note, 100))
-                    midiuart.write(bytes([0x90, new_note, 100])) # note on
                     if new_note>high_note_limit:
                         print(f"{new_note} greater than {high_note_limit}")
                     elif new_note<low_note_limit:
@@ -296,7 +291,6 @@ while True:
             else:
                 if  midi_mode:
                     midi.send(NoteOff(new_note, 0))
-                    midiuart.write(bytes([0x90, new_note, 0]))  # note off
                     #doesn't work
                     pass
         else:
