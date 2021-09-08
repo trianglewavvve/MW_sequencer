@@ -23,7 +23,7 @@ from adafruit_midi.midi_message import MIDIUnknownEvent
 
 # Basic configuration
 division_enabled=False
-idle_count_threshold=128 # number of sequncer steps before mutating pattern
+idle_count_threshold=128 # number of idle sequencer steps before mutating pattern
 high_note_limit=95
 low_note_limit=48
 octave_low=2
@@ -116,7 +116,6 @@ beatset=[[i for i in row] for row in pattern_bank[random.randint(1, 9)]]
 # Everything above executes a single time on startup     
 # Everything below repeats on a loop
 while True:
-
     # CHANGE THE PATTERN IF IDLE
     if idle_count==idle_count_threshold:
         pattern_number=random.randint(1, 9)
